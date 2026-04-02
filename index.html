@@ -2,7 +2,7 @@
 <html lang="sk">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>KICK PRO - ULTIMATE STREAMING</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -26,6 +26,7 @@
             background-image: 
                 radial-gradient(circle at 0% 0%, rgba(5, 240, 10, 0.05) 0%, transparent 50%),
                 radial-gradient(circle at 100% 100%, rgba(51, 103, 145, 0.05) 0%, transparent 50%);
+            -webkit-tap-highlight-color: transparent;
         }
 
         .glass {
@@ -132,6 +133,15 @@
             background: rgba(255,255,255,0.04);
             border-left-color: var(--kick-green);
         }
+
+        /* Mobile specific adjustments */
+        @media (max-width: 768px) {
+            .mobile-hide { display: none !important; }
+            .mobile-full { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-radius: 0 !important; }
+            header { padding-left: 1rem; padding-right: 1rem; height: 64px; }
+            .setup-card { width: 90%; padding: 2rem; border-radius: 24px; }
+            #setup-modal { align-items: flex-start; padding-top: 20%; }
+        }
     </style>
 </head>
 <body class="flex flex-col h-screen">
@@ -147,15 +157,16 @@
                 <div class="inline-flex items-center justify-center w-20 h-20 bg-white/5 rounded-3xl mb-6 border border-white/10">
                     <i class="fa-solid fa-bolt-lightning text-3xl text-[#05f00a]"></i>
                 </div>
-                <h2 class="text-4xl font-extrabold italic tracking-tighter uppercase mb-1">KICK<span class="text-[#05f00a]">PRO</span></h2>
+                <h2 class="text-3xl md:text-4xl font-extrabold italic tracking-tighter uppercase mb-1">KICK<span class="text-[#05f00a]">PRO</span></h2>
                 <div class="flex items-center justify-center space-x-2">
                     <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                    <p class="text-[9px] text-gray-500 font-bold tracking-[0.4em] uppercase">SYSTEM CORE INITIALIZED</p>
+                    <p id="device-tag" class="text-[9px] text-gray-500 font-bold tracking-[0.4em] uppercase">DETECTING DEVICE...</p>
                 </div>
             </div>
 
             <div class="space-y-6 text-left relative">
-                <div class="flex p-1.5 bg-black/40 rounded-2xl border border-white/5">
+                <!-- Toggles only shown on PC -->
+                <div id="mode-selector" class="flex p-1.5 bg-black/40 rounded-2xl border border-white/5">
                     <button id="mode-streamer" class="flex-1 py-3 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all bg-white/10 text-white shadow-xl">Streamer</button>
                     <button id="mode-viewer" class="flex-1 py-3 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all text-gray-500 hover:text-white">Divák</button>
                 </div>
@@ -185,56 +196,53 @@
     <header class="h-20 border-b border-white/5 flex items-center justify-between px-10 glass z-50">
         <div class="flex items-center space-x-8">
             <div class="flex items-center space-x-3 group cursor-pointer" onclick="location.reload()">
-                <div class="w-10 h-10 bg-[#05f00a] rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(5,240,10,0.2)] group-hover:scale-110 transition-transform">
-                    <i class="fa-solid fa-play text-black text-sm"></i>
+                <div class="w-8 h-8 md:w-10 md:h-10 bg-[#05f00a] rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(5,240,10,0.2)] group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-play text-black text-xs md:text-sm"></i>
                 </div>
-                <h1 class="text-2xl font-extrabold italic tracking-tighter uppercase">KICK<span class="text-[#05f00a]">PRO</span></h1>
+                <h1 class="text-xl md:text-2xl font-extrabold italic tracking-tighter uppercase">KICK<span class="text-[#05f00a]">PRO</span></h1>
             </div>
-            <div id="status-live" class="hidden flex items-center space-x-2 bg-red-500/10 border border-red-500/20 px-4 py-1.5 rounded-full">
-                <span class="w-2 h-2 rounded-full bg-red-500 live-pulse"></span>
-                <span class="text-[10px] font-extrabold text-red-500 uppercase tracking-widest">Live</span>
+            <div id="status-live" class="hidden flex items-center space-x-2 bg-red-500/10 border border-red-500/20 px-3 py-1 rounded-full">
+                <span class="w-1.5 h-1.5 rounded-full bg-red-500 live-pulse"></span>
+                <span class="text-[8px] md:text-[10px] font-extrabold text-red-500 uppercase tracking-widest">Live</span>
             </div>
         </div>
 
         <!-- HLAVNÝ VYHĽADÁVAČ / PRIPOJENIE -->
-        <div class="flex-1 max-w-md mx-10">
+        <div class="flex-1 max-w-md mx-4 md:mx-10">
             <div class="relative group">
-                <input id="global-search" type="text" placeholder="Zadaj ID miestnosti pre verejné pripojenie..." 
-                    class="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-12 outline-none text-sm font-semibold transition-all focus:border-[#05f00a]/50 focus:bg-white/[0.08]">
-                <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
-                <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center space-x-1 opacity-0 group-focus-within:opacity-100 transition-opacity">
-                    <span class="text-[9px] font-bold text-gray-600 border border-white/10 px-1.5 py-0.5 rounded uppercase">Enter</span>
-                </div>
+                <input id="global-search" type="text" placeholder="ID kód..." 
+                    class="w-full bg-white/5 border border-white/10 rounded-2xl py-2 md:py-3 px-10 md:px-12 outline-none text-xs md:text-sm font-semibold transition-all focus:border-[#05f00a]/50 focus:bg-white/[0.08]">
+                <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-[10px]"></i>
             </div>
         </div>
 
-        <div class="flex items-center space-x-6">
+        <div class="flex items-center space-x-3 md:space-x-6">
             <div id="room-display" class="hidden group cursor-pointer" onclick="copyRoomId()">
-                <div class="bg-white/5 hover:bg-white/10 border border-white/10 px-5 py-2.5 rounded-2xl flex items-center space-x-4 transition-all">
-                    <div class="flex flex-col items-start">
+                <div class="bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 md:px-5 md:py-2.5 rounded-xl md:rounded-2xl flex items-center space-x-4 transition-all">
+                    <div class="flex flex-col items-start mobile-hide">
                         <span class="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Share ID</span>
                         <span id="current-room-id" class="text-[#05f00a] text-sm font-bold mono leading-none">---</span>
                     </div>
-                    <i class="fa-solid fa-copy text-gray-500 group-hover:text-white transition-colors"></i>
+                    <i class="fa-solid fa-copy text-gray-500 group-hover:text-white transition-colors text-xs"></i>
                 </div>
             </div>
             
-            <div class="h-8 w-[1px] bg-white/10"></div>
+            <div class="h-8 w-[1px] bg-white/10 mobile-hide"></div>
             
             <div class="flex items-center space-x-4">
-                <div class="text-right hidden sm:block">
-                    <p class="text-[9px] text-gray-500 font-bold uppercase">Latency Status</p>
+                <div class="text-right hidden md:block">
+                    <p class="text-[9px] text-gray-500 font-bold uppercase">Latency</p>
                     <p id="db-led-text" class="text-[11px] font-extrabold text-gray-400 uppercase tracking-wider">Standby</p>
                 </div>
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-gray-800 to-gray-700 border border-white/10 flex items-center justify-center">
-                    <i class="fa-solid fa-user text-xs text-gray-400"></i>
+                <div class="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-tr from-gray-800 to-gray-700 border border-white/10 flex items-center justify-center">
+                    <i class="fa-solid fa-user text-[10px] text-gray-400"></i>
                 </div>
             </div>
         </div>
     </header>
 
-    <div class="flex flex-1 overflow-hidden">
-        <!-- METRICS SIDEBAR -->
+    <div class="flex flex-1 overflow-hidden flex-col md:flex-row">
+        <!-- METRICS SIDEBAR (Hidden on mobile) -->
         <aside class="w-80 p-8 space-y-6 hidden lg:flex flex-col glass border-r-0">
             <h3 class="text-[10px] font-extrabold text-gray-500 uppercase tracking-[0.3em] mb-2">Technické štatistiky</h3>
             
@@ -253,50 +261,39 @@
                 </div>
 
                 <div class="p-5 rounded-2xl bg-white/[0.03] border border-white/5">
-                    <span class="text-[9px] font-bold text-gray-500 uppercase block mb-1">Real-time Latency</span>
+                    <span class="text-[9px] font-bold text-gray-500 uppercase block mb-1">Latency</span>
                     <div id="latency-val" class="text-2xl font-extrabold mono text-blue-400">0.00 ms</div>
                 </div>
-            </div>
-
-            <div class="mt-auto p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10">
-                <div class="flex items-center space-x-3 text-blue-400 mb-2">
-                    <i class="fa-solid fa-lock text-[10px]"></i>
-                    <span class="text-[10px] font-bold uppercase tracking-widest">End-to-End Encryption</span>
-                </div>
-                <p class="text-[9px] text-gray-500 leading-relaxed font-medium uppercase tracking-wider">Dáta sú šifrované v reálnom čase pomocou AES-256 GCM protokolu priamo v prehliadači.</p>
             </div>
         </aside>
 
         <!-- VIEWPORT -->
-        <main class="flex-1 flex flex-col bg-black relative m-4 rounded-[32px] overflow-hidden border border-white/5">
+        <main class="flex-1 flex flex-col bg-black relative md:m-4 rounded-none md:rounded-[32px] overflow-hidden border border-white/5">
             <video id="player" autoplay playsinline class="hidden w-full h-full"></video>
             
             <div id="placeholder" class="absolute inset-0 flex items-center justify-center flex-col p-10 text-center">
-                <div class="w-32 h-32 mb-10 relative">
+                <div class="w-24 h-24 md:w-32 md:h-32 mb-6 md:top-10 relative">
                     <div class="absolute inset-0 bg-[#05f00a]/5 rounded-full blur-3xl"></div>
-                    <div class="relative w-full h-full flex items-center justify-center bg-white/5 rounded-[40px] border border-white/10">
-                        <i class="fa-solid fa-satellite-dish text-4xl text-gray-800"></i>
+                    <div class="relative w-full h-full flex items-center justify-center bg-white/5 rounded-[30px] md:rounded-[40px] border border-white/10">
+                        <i class="fa-solid fa-satellite-dish text-2xl md:text-4xl text-gray-800"></i>
                     </div>
                 </div>
-                <h2 class="text-lg font-extrabold uppercase tracking-[0.5em] text-gray-500 mb-3">No Signal</h2>
+                <h2 class="text-sm md:text-lg font-extrabold uppercase tracking-[0.5em] text-gray-500 mb-3">No Signal</h2>
                 <p class="text-[10px] text-gray-600 max-w-[280px] font-bold uppercase tracking-[0.2em] leading-relaxed">
-                    Čakám na prichádzajúci dátový paket z Peer-to-Peer siete alebo zadajte ID do vyhľadávača vyššie.
+                    Zadajte ID kód streamu do vyhľadávača vyššie pre spustenie live prenosu.
                 </p>
             </div>
         </main>
 
-        <!-- LOGSIDE -->
-        <aside class="w-96 flex flex-col glass border-l-0">
+        <!-- LOGSIDE (Hidden on mobile) -->
+        <aside class="w-96 flex flex-col glass border-l-0 mobile-hide">
             <div class="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.01]">
                 <div class="flex items-center space-x-3">
                     <div class="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
                     <span class="font-extrabold uppercase tracking-[0.2em] text-[10px] text-gray-400">Logy Udalostí</span>
                 </div>
-                <span class="text-[9px] font-extrabold text-white bg-white/10 px-3 py-1.5 rounded-lg">4K v2.1</span>
             </div>
-            <div id="logs" class="flex-1 overflow-y-auto p-6 space-y-3 text-[10px] mono custom-scroll">
-                <!-- Logy sa pridávajú sem -->
-            </div>
+            <div id="logs" class="flex-1 overflow-y-auto p-6 space-y-3 text-[10px] mono custom-scroll"></div>
         </aside>
     </div>
 
@@ -314,28 +311,48 @@
         const globalSearch = document.getElementById('global-search');
         
         let isStreamer = true;
+        let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-        // GLOBÁLNE VYHĽADÁVANIE (ID PRIPOJENIE)
+        // DEVICE DETECTION LOGIC
+        window.onload = () => {
+            const deviceTag = document.getElementById('device-tag');
+            if (isMobile) {
+                deviceTag.innerText = "MOBILE DEVICE DETECTED - VIEW ONLY";
+                deviceTag.classList.replace('text-gray-500', 'text-[#05f00a]');
+                
+                // Vynútenie Viewer režimu na mobile
+                isStreamer = false;
+                document.getElementById('mode-selector').style.display = 'none';
+                document.getElementById('streamer-config').classList.add('hidden');
+                document.getElementById('viewer-config').classList.remove('hidden');
+                btn.innerText = "Sledovať stream";
+            } else {
+                deviceTag.innerText = "DESKTOP TERMINAL - FULL ACCESS";
+            }
+        };
+
+        // GLOBÁLNE VYHĽADÁVANIE
         globalSearch.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && globalSearch.value.trim() !== '') {
                 const id = globalSearch.value.toUpperCase();
                 globalSearch.value = '';
                 globalSearch.blur();
                 
-                // Ak je otvorený modal, zavrieme ho
                 modal.style.display = 'none';
                 initInterface();
                 startViewing(id);
             }
         });
 
-        // MODE TOGGLE
+        // MODE TOGGLE (PC ONLY)
         document.getElementById('mode-streamer').onclick = () => {
+            if (isMobile) return;
             isStreamer = true;
             document.getElementById('mode-streamer').className = "flex-1 py-3 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all bg-white/10 text-white shadow-xl";
             document.getElementById('mode-viewer').className = "flex-1 py-3 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all text-gray-500 hover:text-white";
             document.getElementById('streamer-config').classList.remove('hidden');
             document.getElementById('viewer-config').classList.add('hidden');
+            btn.innerText = "Spustiť rozhranie";
         };
 
         document.getElementById('mode-viewer').onclick = () => {
@@ -344,6 +361,7 @@
             document.getElementById('mode-streamer').className = "flex-1 py-3 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all text-gray-500 hover:text-white";
             document.getElementById('viewer-config').classList.remove('hidden');
             document.getElementById('streamer-config').classList.add('hidden');
+            btn.innerText = "Sledovať stream";
         };
 
         window.copyRoomId = () => {
@@ -364,7 +382,7 @@
             setTimeout(() => {
                 modal.style.display = 'none';
                 initInterface();
-                if (isStreamer) startStreaming();
+                if (isStreamer && !isMobile) startStreaming();
                 else startViewing(roomInput.value.toUpperCase() || "DEMO7");
             }, 500);
         };
@@ -397,23 +415,26 @@
             document.getElementById('current-room-id').innerText = inputId;
             addLog(`Pripájanie k ID: ${inputId}...`, "SYSTEM");
             
-            // Simulácia pripájania
             setTimeout(() => {
                 addLog(`Spojenie so peer-om ${inputId} úspešné.`, "SUCCESS");
                 addLog("Čakám na video stream...", "INFO");
+                
+                // Simulácia prijatia videa pre diváka
+                if (!isStreamer) {
+                    player.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                    // Tu by bola WebRTC logika, simulujeme placeholder video
+                    player.poster = "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200";
+                }
+                
                 simulateMetas();
             }, 1500);
         }
 
         function addLog(msg, type = "INFO") {
+            if (isMobile) return; // Na mobile logy neriešime v UI
             const l = document.createElement('div');
-            const colors = {
-                SUCCESS: "text-[#05f00a]",
-                ERROR: "text-red-500",
-                SYSTEM: "text-blue-400",
-                INFO: "text-gray-400"
-            };
-            
+            const colors = { SUCCESS: "text-[#05f00a]", ERROR: "text-red-500", SYSTEM: "text-blue-400", INFO: "text-gray-400" };
             l.className = "p-4 bg-white/[0.02] border border-white/5 rounded-2xl log-entry";
             l.innerHTML = `
                 <div class="flex justify-between items-center mb-1">
@@ -427,13 +448,15 @@
 
         function simulateMetas() {
             setInterval(() => {
-                const br = (Math.random() * 2 + 8).toFixed(1);
-                speedText.innerHTML = br + ' <span class="text-[10px] text-gray-600 font-normal">Mbps</span>';
                 const lat = (Math.random() * 3 + 12).toFixed(2);
-                document.getElementById('latency-val').innerText = lat + " ms";
                 const buf = 95 + Math.random() * 5;
-                bar.style.width = buf + "%";
-                barText.innerText = Math.round(buf) + "%";
+                if (!isMobile) {
+                    const br = (Math.random() * 2 + 8).toFixed(1);
+                    speedText.innerHTML = br + ' <span class="text-[10px] text-gray-600">Mbps</span>';
+                    document.getElementById('latency-val').innerText = lat + " ms";
+                    bar.style.width = buf + "%";
+                    barText.innerText = Math.round(buf) + "%";
+                }
             }, 2000);
         }
     </script>
