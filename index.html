@@ -1,268 +1,388 @@
 <!DOCTYPE html>
-<html lang="sk">
+<html lang="sk" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KICK PRO - REALTIME P2P</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloopTube | Live Streaming Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-
         :root {
-            --kick-green: #05f00a;
-            --bg-dark: #06080a;
-            --panel-bg: rgba(13, 17, 23, 0.8);
+            --kick-green: #53fc18;
+            --kick-black: #0b0e11;
+            --kick-grey: #191b1f;
+            --kick-hover: #212429;
         }
 
-        body { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            background-color: var(--bg-dark); 
-            color: #ffffff; 
-            margin: 0;
-            overflow: hidden;
+        body {
+            background-color: var(--kick-black);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
         }
 
-        .glass {
-            background: var(--panel-bg);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-
-        video {
-            width: 100%;
-            height: 100%;
-            background: #000;
-            object-fit: contain; /* Zabezpečí, že uvidíte celý monitor bez orezania */
-        }
-
-        #setup-modal { 
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .sidebar {
+            background-color: var(--kick-grey);
+            height: calc(100vh - 64px);
         }
 
         .btn-primary {
-            background: var(--kick-green);
-            color: #000;
-            font-weight: 800;
-            transition: all 0.2s;
+            background-color: var(--kick-green);
+            color: black;
+            font-weight: 700;
+            transition: transform 0.2s;
         }
 
-        .btn-primary:disabled {
-            background: #222;
-            color: #555;
-            cursor: not-allowed;
+        .btn-primary:hover {
+            transform: scale(1.02);
+            opacity: 0.9;
         }
 
-        .live-indicator {
-            animation: pulse 1.5s infinite;
+        .video-card:hover .play-overlay {
+            opacity: 1;
         }
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.4; }
-            100% { opacity: 1; }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
         }
 
-        @media (max-width: 768px) {
-            .desktop-only { display: none !important; }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 10px;
+        }
+
+        /* Skrytie štandardných YouTube prvkov cez iframe overlay */
+        .player-container {
+            position: relative;
+            aspect-ratio: 16/9;
+            background: black;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .chat-container {
+            background-color: var(--kick-grey);
+            border-left: 1px solid #2d2d2d;
         }
     </style>
 </head>
-<body class="flex flex-col h-screen">
+<body>
 
-    <!-- MODAL PRE VÝBER ROLY -->
-    <div id="setup-modal" class="p-4">
-        <div class="max-w-md w-full bg-[#111] p-8 rounded-[32px] border border-white/10 text-center">
-            <h2 class="text-3xl font-black italic uppercase mb-2">KICK<span class="text-[#05f00a]">PRO</span></h2>
-            <p id="device-info" class="text-[10px] tracking-[0.3em] text-gray-500 uppercase mb-8">Inicializácia...</p>
+    <!-- Navigácia -->
+    <nav class="h-16 border-b border-gray-800 flex items-center justify-between px-6 sticky top-0 z-50 bg-[#0b0e11]">
+        <div class="flex items-center gap-8">
+            <h1 class="text-2xl font-black text-[#53fc18] tracking-tighter">CLOOPTUBE</h1>
+            <div class="hidden md:flex gap-6 text-sm font-semibold text-gray-400">
+                <a href="#" class="hover:text-white" onclick="showSection('home')">Domov</a>
+                <a href="#" class="hover:text-white" onclick="showSection('browse')">Prehliadať</a>
+            </div>
+        </div>
 
-            <div class="space-y-4">
-                <!-- Streamer sekcia (iba PC) -->
-                <div id="streamer-ui" class="desktop-only border border-white/5 p-6 rounded-2xl bg-white/5">
-                    <i class="fa-solid fa-desktop text-2xl text-[#05f00a] mb-3"></i>
-                    <h3 class="font-bold text-sm uppercase mb-4">Vysielať monitor</h3>
-                    <button id="btn-start-stream" class="btn-primary w-full py-4 rounded-xl text-xs uppercase tracking-widest">
-                        Zdieľať obrazovku
-                    </button>
+        <div class="flex-1 max-w-xl px-4">
+            <div class="relative">
+                <input type="text" id="searchInput" placeholder="Hľadať live streamy..." class="w-full bg-[#1e2024] border-none rounded-md py-2 px-4 focus:ring-1 focus:ring-[#53fc18] text-sm outline-none">
+                <button onclick="searchLiveStreams()" class="absolute right-3 top-2 text-gray-400">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <button onclick="openSettings()" class="text-gray-400 hover:text-white"><i class="fas fa-cog text-xl"></i></button>
+            <div id="authStatus" class="flex items-center gap-2">
+                <!-- Dynamicky plnené -->
+                <button class="text-sm font-bold text-white px-4 py-2">Prihlásiť sa</button>
+                <button class="btn-primary text-sm px-4 py-2 rounded">Registrácia</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 sidebar hidden lg:flex flex-col p-4 sticky top-16">
+            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Odporúčané kategórie</h3>
+            <div class="space-y-2 mb-8" id="categoryList">
+                <button onclick="searchByCategory('Gaming')" class="w-full flex items-center gap-3 p-2 hover:bg-[#212429] rounded transition">
+                    <i class="fas fa-gamepad text-[#53fc18]"></i>
+                    <span class="text-sm">Hry</span>
+                </button>
+                <button onclick="searchByCategory('Horror Games')" class="w-full flex items-center gap-3 p-2 hover:bg-[#212429] rounded transition">
+                    <i class="fas fa-ghost text-[#53fc18]"></i>
+                    <span class="text-sm">Horory</span>
+                </button>
+                <button onclick="searchByCategory('Esports')" class="w-full flex items-center gap-3 p-2 hover:bg-[#212429] rounded transition">
+                    <i class="fas fa-trophy text-[#53fc18]"></i>
+                    <span class="text-sm">Esport</span>
+                </button>
+                <button onclick="searchByCategory('Minecraft')" class="w-full flex items-center gap-3 p-2 hover:bg-[#212429] rounded transition">
+                    <i class="fas fa-cube text-[#53fc18]"></i>
+                    <span class="text-sm">Minecraft</span>
+                </button>
+            </div>
+            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Sledované kanály</h3>
+            <div id="followedChannels" class="space-y-4">
+                <p class="text-xs text-gray-600 px-2 italic">Zatiaľ nikoho nesleduješ.</p>
+            </div>
+        </aside>
+
+        <!-- Hlavný obsah -->
+        <main class="flex-1 min-h-screen p-6" id="mainContent">
+            <!-- Home Section -->
+            <section id="homeSection">
+                <h2 class="text-3xl font-bold mb-6">Živé prenosy práve teraz</h2>
+                <div id="videoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <!-- Videá sa načítajú sem -->
+                    <div class="animate-pulse bg-gray-800 h-48 rounded-lg"></div>
+                    <div class="animate-pulse bg-gray-800 h-48 rounded-lg"></div>
+                    <div class="animate-pulse bg-gray-800 h-48 rounded-lg"></div>
+                    <div class="animate-pulse bg-gray-800 h-48 rounded-lg"></div>
                 </div>
+            </section>
 
-                <!-- Viewer sekcia (Mobil aj PC) -->
-                <div class="border border-white/5 p-6 rounded-2xl bg-white/5">
-                    <i class="fa-solid fa-play text-2xl text-blue-500 mb-3"></i>
-                    <h3 class="font-bold text-sm uppercase mb-4">Sledovať stream</h3>
-                    <input id="input-peer-id" type="text" placeholder="Zadaj ID streamera" 
-                        class="w-full bg-black border border-white/10 p-4 rounded-xl mb-4 text-center font-bold text-[#05f00a] uppercase outline-none focus:border-[#05f00a]">
-                    <button id="btn-join-stream" class="bg-white text-black font-black w-full py-4 rounded-xl text-xs uppercase tracking-widest">
-                        Pripojiť sa
-                    </button>
+            <!-- Player Section (Hidden by default) -->
+            <section id="playerSection" class="hidden">
+                <div class="flex flex-col xl:flex-row gap-6 h-full">
+                    <div class="flex-1">
+                        <div class="player-container shadow-2xl">
+                            <div id="customPlayer"></div>
+                        </div>
+                        <div class="mt-4 flex items-start justify-between">
+                            <div>
+                                <h1 id="streamTitle" class="text-2xl font-bold">Načítavam stream...</h1>
+                                <div class="flex items-center gap-3 mt-2">
+                                    <div class="w-10 h-10 rounded-full bg-gray-700" id="channelAvatar"></div>
+                                    <div>
+                                        <p id="channelName" class="font-bold text-sm">Kanál</p>
+                                        <p class="text-xs text-[#53fc18] font-bold"><i class="fas fa-circle text-[8px] mr-1"></i> LIVE</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button class="bg-[#1e2024] px-4 py-2 rounded text-sm font-bold hover:bg-[#2d2d2d]">Zdieľať</button>
+                                <button class="btn-primary px-6 py-2 rounded text-sm">Sledovať</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Čet -->
+                    <div class="w-full xl:w-80 chat-container flex flex-col rounded-lg h-[600px] xl:h-auto">
+                        <div class="p-3 border-b border-gray-800 flex justify-between items-center">
+                            <span class="font-bold text-sm">ČET NAŽIVO</span>
+                            <i class="fas fa-users text-gray-500"></i>
+                        </div>
+                        <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar text-sm">
+                            <!-- Správy četu -->
+                        </div>
+                        <div class="p-4 border-t border-gray-800">
+                            <input type="text" placeholder="Napísať správu..." class="w-full bg-[#0b0e11] border border-gray-700 rounded-md py-2 px-3 text-sm focus:border-[#53fc18] outline-none">
+                        </div>
+                    </div>
                 </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Nastavenia / API Key Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/80 z-[100] hidden items-center justify-center p-4">
+        <div class="bg-[#191b1f] w-full max-w-md rounded-xl p-6 border border-gray-800 shadow-2xl">
+            <h2 class="text-xl font-bold mb-4">Nastavenia účtu</h2>
+            <p class="text-sm text-gray-400 mb-6">Pre fungovanie CloopTube vložte váš YouTube Data API v3/v5 kľúč. Dáta sú uložené len vo vašom prehliadači (IndexedDB).</p>
+            
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">YouTube API Key</label>
+            <input type="password" id="apiKeyInput" placeholder="Zadajte API kľúč..." class="w-full bg-[#0b0e11] border border-gray-800 rounded-md py-3 px-4 mb-4 text-sm focus:ring-1 focus:ring-[#53fc18] outline-none">
+            
+            <div class="flex justify-end gap-3">
+                <button onclick="closeSettings()" class="px-4 py-2 text-sm text-gray-400 hover:text-white">Zrušiť</button>
+                <button onclick="saveSettings()" class="btn-primary px-6 py-2 rounded text-sm">Uložiť a pripojiť</button>
             </div>
         </div>
     </div>
 
-    <!-- HEADER -->
-    <header class="h-16 md:h-20 border-b border-white/5 flex items-center justify-between px-4 md:px-10 glass">
-        <div class="flex items-center space-x-4">
-            <div class="flex items-center space-x-2">
-                <div class="w-8 h-8 bg-[#05f00a] rounded-lg flex items-center justify-center">
-                    <i class="fa-solid fa-bolt text-black text-xs"></i>
-                </div>
-                <span class="font-black italic uppercase text-lg hidden md:block">KICK<span class="text-[#05f00a]">PRO</span></span>
-            </div>
-            <div id="live-tag" class="hidden flex items-center space-x-2 bg-red-600 px-3 py-1 rounded-md live-indicator">
-                <span class="text-[9px] font-black uppercase">Live</span>
-            </div>
-        </div>
-
-        <div class="flex-1 max-w-sm mx-4">
-            <input id="search-id" type="text" placeholder="Vyhladať ID..." class="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-4 text-xs outline-none focus:border-[#05f00a]">
-        </div>
-
-        <div class="flex items-center space-x-4">
-            <div id="my-id-container" class="hidden md:flex flex-col items-end">
-                <span class="text-[8px] text-gray-500 font-bold uppercase">Tvoje ID</span>
-                <span id="display-peer-id" class="text-[#05f00a] font-bold mono text-xs">---</span>
-            </div>
-            <div class="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-                <i class="fa-solid fa-user text-xs text-gray-400"></i>
-            </div>
-        </div>
-    </header>
-
-    <!-- MAIN VIEW -->
-    <main class="flex-1 bg-black relative flex items-center justify-center">
-        <!-- Iba jeden video element pre monitor -->
-        <video id="remote-video" autoplay playsinline class="w-full h-full"></video>
-        <video id="local-video" autoplay playsinline muted class="hidden w-full h-full"></video>
-        
-        <div id="no-signal" class="absolute inset-0 flex flex-center items-center justify-center flex-col text-center p-8">
-            <i class="fa-solid fa-signal text-4xl text-gray-800 mb-4"></i>
-            <h2 class="text-gray-600 font-black uppercase tracking-widest text-sm">Žiadny signál</h2>
-            <p class="text-[10px] text-gray-700 mt-2 uppercase">Zadaj ID a pripoj sa k vysielaniu</p>
-        </div>
-
-        <!-- MOBILE STREAM INFO OVERLAY -->
-        <div id="mobile-overlay" class="absolute bottom-4 left-4 right-4 md:hidden hidden">
-            <div class="glass p-4 rounded-2xl flex items-center justify-between">
-                <div>
-                    <p id="overlay-title" class="text-xs font-bold">Načítavam stream...</p>
-                    <p class="text-[9px] text-gray-400 uppercase">Single Feed Link</p>
-                </div>
-                <div class="bg-red-600 px-2 py-1 rounded text-[8px] font-black uppercase">Live</div>
-            </div>
-        </div>
-    </main>
-
     <script>
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const peer = new Peer(); 
-        
-        let localStream;
-        const localVideo = document.getElementById('local-video');
-        const remoteVideo = document.getElementById('remote-video');
-        const setupModal = document.getElementById('setup-modal');
-        const noSignal = document.getElementById('no-signal');
+        // --- DATABASE LOGIC (IndexedDB) ---
+        const DB_NAME = 'CloopTubeDB';
+        const STORE_NAME = 'settings';
+        let db;
+        let YOUTUBE_API_KEY = '';
 
-        window.onload = () => {
-            const deviceInfo = document.getElementById('device-info');
-            if (isMobile) {
-                deviceInfo.innerText = "Mobilné zariadenie - Režim Divák";
-            } else {
-                deviceInfo.innerText = "PC Terminal - Jeden zdroj (Monitor)";
-            }
+        const initDB = () => {
+            return new Promise((resolve) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    db.createObjectStore(STORE_NAME);
+                };
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    resolve();
+                };
+            });
         };
 
-        peer.on('open', (id) => {
-            document.getElementById('display-peer-id').innerText = id;
-            console.log('Moje Peer ID:', id);
-        });
+        const getApiKey = async () => {
+            return new Promise((resolve) => {
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.get('api_key');
+                request.onsuccess = () => resolve(request.result);
+            });
+        };
 
-        // --- LOGIKA STREAMERA (PC) - JEDEN ZDROJ (MONITOR) ---
-        document.getElementById('btn-start-stream').onclick = async () => {
-            if (isMobile) return;
+        const setApiKey = async (key) => {
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            store.put(key, 'api_key');
+            YOUTUBE_API_KEY = key;
+        };
+
+        // --- APP LOGIC ---
+        let currentSection = 'home';
+
+        const showSection = (section) => {
+            currentSection = section;
+            document.getElementById('homeSection').classList.toggle('hidden', section !== 'home');
+            document.getElementById('playerSection').classList.toggle('hidden', section !== 'player');
+            if(section === 'home') loadHomeStreams();
+        };
+
+        const openSettings = () => document.getElementById('settingsModal').classList.remove('hidden');
+        const closeSettings = () => document.getElementById('settingsModal').classList.add('hidden');
+
+        const saveSettings = async () => {
+            const key = document.getElementById('apiKeyInput').value;
+            if(!key) return alert('Zadajte platný kľúč!');
+            await setApiKey(key);
+            closeSettings();
+            loadHomeStreams();
+        };
+
+        // --- API CALLS ---
+        const loadHomeStreams = async (query = 'Gaming Live') => {
+            if(!YOUTUBE_API_KEY) {
+                document.getElementById('videoGrid').innerHTML = `
+                    <div class="col-span-full py-20 text-center">
+                        <i class="fas fa-key text-4xl mb-4 text-gray-700"></i>
+                        <p class="text-gray-500">Na prezeranie streamov musíte v nastaveniach zadať API Kľúč.</p>
+                        <button onclick="openSettings()" class="mt-4 text-[#53fc18] font-bold underline">Otvoriť nastavenia</button>
+                    </div>
+                `;
+                return;
+            }
 
             try {
-                // Zachytenie celého monitora (Display Media)
-                localStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { 
-                        cursor: "always",
-                        frameRate: { ideal: 30, max: 60 }
-                    },
-                    audio: true
-                });
-
-                // Zobrazenie lokálneho náhľadu
-                localVideo.srcObject = localStream;
-                localVideo.classList.remove('hidden');
-                remoteVideo.classList.add('hidden');
-                noSignal.classList.add('hidden');
+                const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&eventType=live&maxResults=20&q=${encodeURIComponent(query)}&key=${YOUTUBE_API_KEY}`);
+                const data = await response.json();
                 
-                enterApp();
-                document.getElementById('my-id-container').classList.remove('hidden');
+                if(data.error) throw new Error(data.error.message);
                 
-                // Prijímanie hovorov (P2P)
-                peer.on('call', (call) => {
-                    console.log('Pripája sa divák...');
-                    call.answer(localStream);
-                });
-
-                console.log("Vysielanie monitora spustené.");
+                renderVideos(data.items);
             } catch (err) {
-                console.error("Chyba pri štarte:", err);
-                alert("Zrušené alebo chyba pri zdieľaní monitora.");
+                console.error(err);
+                document.getElementById('videoGrid').innerHTML = `<p class="col-span-full text-red-500">Chyba API: ${err.message}</p>`;
             }
         };
 
-        // --- LOGIKA DIVÁKA ---
-        const joinStream = (targetId) => {
-            if (!targetId) return;
+        const renderVideos = (videos) => {
+            const grid = document.getElementById('videoGrid');
+            grid.innerHTML = videos.map(video => `
+                <div class="video-card cursor-pointer" onclick="playStream('${video.id.videoId}', '${video.snippet.title.replace(/'/g, "\\'")}', '${video.snippet.channelTitle.replace(/'/g, "\\'")}')">
+                    <div class="relative group overflow-hidden rounded-lg">
+                        <img src="${video.snippet.thumbnails.medium.url}" class="w-full object-cover aspect-video group-hover:scale-105 transition duration-300">
+                        <div class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded shadow-lg">LIVE</div>
+                        <div class="play-overlay absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 transition duration-300">
+                            <i class="fas fa-play text-white text-3xl"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex gap-3">
+                        <div class="w-9 h-9 rounded-full bg-gray-800 flex-shrink-0"></div>
+                        <div>
+                            <h3 class="text-sm font-bold line-clamp-2 leading-tight">${video.snippet.title}</h3>
+                            <p class="text-xs text-gray-500 mt-1">${video.snippet.channelTitle}</p>
+                            <p class="text-[11px] text-gray-400">Gaming</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        const searchLiveStreams = () => {
+            const q = document.getElementById('searchInput').value;
+            if(q) {
+                showSection('home');
+                loadHomeStreams(q + ' Live');
+            }
+        };
+
+        const searchByCategory = (cat) => {
+            document.getElementById('searchInput').value = cat;
+            showSection('home');
+            loadHomeStreams(cat + ' Live');
+        };
+
+        // --- CUSTOM PLAYER & CHAT ---
+        const playStream = (id, title, channel) => {
+            showSection('player');
+            document.getElementById('streamTitle').innerText = title;
+            document.getElementById('channelName').innerText = channel;
             
-            console.log('Pripájanie k:', targetId);
-            const call = peer.call(targetId, new MediaStream()); 
+            // "Náš" prehrávač - Iframe s minimálnym UI
+            document.getElementById('customPlayer').innerHTML = `
+                <iframe 
+                    src="https://www.youtube.com/embed/${id}?autoplay=1&modestbranding=1&rel=0&iv_load_policy=3&showinfo=0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen>
+                </iframe>
+            `;
 
-            call.on('stream', (remoteStream) => {
-                console.log('Stream prijatý!');
-                remoteVideo.srcObject = remoteStream;
-                remoteVideo.classList.remove('hidden');
-                localVideo.classList.add('hidden');
-                noSignal.classList.add('hidden');
-                
-                if (isMobile) {
-                    document.getElementById('mobile-overlay').classList.remove('hidden');
-                    document.getElementById('overlay-title').innerText = "Sledujem: " + targetId;
-                }
-                
-                enterApp();
-            });
-
-            call.on('error', (err) => {
-                alert("Nepodarilo sa nájsť streamera s týmto ID.");
-            });
+            loadFakeChat();
         };
 
-        document.getElementById('btn-join-stream').onclick = () => {
-            const id = document.getElementById('input-peer-id').value.trim();
-            joinStream(id);
+        const loadFakeChat = () => {
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML = '';
+            const users = ['AlexGaming', 'PixelWarrior', 'ShadowStreamer', 'KickFan22', 'Viewer007'];
+            const messages = ['LUL', 'GG!', 'To bol insane move!', 'Ahoj z Bratislavy', 'Kedy bude giveaway?', 'hypeeee', 'Nice player UI!'];
+
+            const addMsg = () => {
+                if(currentSection !== 'player') return;
+                const div = document.createElement('div');
+                const user = users[Math.floor(Math.random() * users.length)];
+                const msg = messages[Math.floor(Math.random() * messages.length)];
+                
+                div.innerHTML = `
+                    <span class="font-bold text-[#53fc18]">${user}:</span>
+                    <span class="text-gray-200 ml-1">${msg}</span>
+                `;
+                chatBox.appendChild(div);
+                chatBox.scrollTop = chatBox.scrollHeight;
+                
+                setTimeout(addMsg, Math.random() * 3000 + 1000);
+            };
+            addMsg();
         };
 
-        document.getElementById('search-id').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                joinStream(e.target.value.trim());
+        // --- INIT ---
+        window.onload = async () => {
+            await initDB();
+            const savedKey = await getApiKey();
+            if(savedKey) {
+                YOUTUBE_API_KEY = savedKey;
+                document.getElementById('apiKeyInput').value = savedKey;
+                loadHomeStreams();
+            } else {
+                openSettings();
             }
-        });
-
-        function enterApp() {
-            setupModal.style.display = 'none';
-            document.getElementById('live-tag').classList.remove('hidden');
-        }
-
+        };
     </script>
 </body>
 </html>
