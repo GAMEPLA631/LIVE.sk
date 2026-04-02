@@ -136,14 +136,14 @@
         <div class="flex items-center gap-8">
             <h1 class="text-2xl font-black text-[#53fc18] tracking-tighter cursor-pointer" onclick="showSection('home')">CLOOPTUBE</h1>
             <div class="hidden md:flex gap-6 text-sm font-semibold text-gray-400">
-                <a href="#" class="hover:text-white" onclick="showSection('home')">Domov</a>
-                <a href="#" class="hover:text-white" onclick="showSection('browse')">Prehliadať</a>
+                <a href="#" class="hover:text-white cursor-pointer" onclick="showSection('home')">Domov</a>
+                <a href="#" class="hover:text-white cursor-pointer" onclick="showSection('home')">Prehliadať</a>
             </div>
         </div>
 
         <div class="flex-1 max-w-xl px-4">
             <div class="relative">
-                <input type="text" id="searchInput" placeholder="Hľadať live streamy z celého sveta..." class="w-full bg-[#1e2024] border-none rounded-md py-2 px-4 focus:ring-1 focus:ring-[#53fc18] text-sm outline-none">
+                <input type="text" id="searchInput" placeholder="Hľadať live streamy..." class="w-full bg-[#1e2024] border-none rounded-md py-2 px-4 focus:ring-1 focus:ring-[#53fc18] text-sm outline-none">
                 <button onclick="searchLiveStreams()" class="absolute right-3 top-2 text-gray-400">
                     <i class="fas fa-search"></i>
                 </button>
@@ -169,6 +169,9 @@
                 </button>
                 <button onclick="searchByCategory('ASMR')" class="w-full flex items-center gap-3 p-2 hover:bg-[#212429] rounded transition">
                     <i class="fas fa-microphone text-[#53fc18]"></i><span class="text-sm">ASMR</span>
+                </button>
+                <button onclick="searchByCategory('Music')" class="w-full flex items-center gap-3 p-2 hover:bg-[#212429] rounded transition">
+                    <i class="fas fa-music text-[#53fc18]"></i><span class="text-sm">Hudba</span>
                 </button>
             </div>
             
@@ -198,7 +201,13 @@
                         <i class="fas fa-sync-alt mr-2"></i>Obnoviť výber
                     </button>
                 </div>
-                <div id="videoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+                <div id="videoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <!-- Tu sa načítajú videá -->
+                    <div class="col-span-full py-20 text-center text-gray-600">
+                        <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
+                        <p>Hľadám najlepšie live streamy...</p>
+                    </div>
+                </div>
             </section>
 
             <section id="playerSection" class="hidden">
@@ -232,7 +241,9 @@
                         </div>
                         <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar text-sm bg-[#131518]"></div>
                         <div class="p-4 bg-[#191b1f] border-t border-gray-800">
-                            <input type="text" id="chatInput" placeholder="Napíš niečo..." class="w-full bg-[#0b0e11] border border-gray-700 rounded-lg py-2.5 px-4 text-sm outline-none">
+                            <form onsubmit="event.preventDefault(); sendChatMessage();">
+                                <input type="text" id="chatInput" placeholder="Napíš niečo..." class="w-full bg-[#0b0e11] border border-gray-700 rounded-lg py-2.5 px-4 text-sm outline-none">
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -245,7 +256,7 @@
         <div class="bg-[#191b1f] w-full max-w-md rounded-2xl p-8 border border-gray-800">
             <h2 id="authTitle" class="text-2xl font-black mb-6 tracking-tight text-center">Vstúpiť do CloopTube</h2>
             <div class="space-y-4">
-                <input type="text" id="authUser" placeholder="Používateľ" class="w-full bg-[#0b0e11] border border-gray-800 rounded-xl py-3 px-4 text-sm outline-none focus:border-[#53fc18]">
+                <input type="text" id="authUser" placeholder="Používateľské meno" class="w-full bg-[#0b0e11] border border-gray-800 rounded-xl py-3 px-4 text-sm outline-none focus:border-[#53fc18]">
                 <input type="password" id="authPass" placeholder="Heslo" class="w-full bg-[#0b0e11] border border-gray-800 rounded-xl py-3 px-4 text-sm outline-none focus:border-[#53fc18]">
                 <button id="authSubmit" class="btn-primary w-full py-3 rounded-xl mt-4">Pokračovať</button>
                 <p id="authToggle" class="text-center text-xs text-gray-500 cursor-pointer hover:text-white mt-4 underline">Vytvoriť nový účet</p>
@@ -258,6 +269,7 @@
     <div id="settingsModal" class="fixed inset-0 bg-black/90 z-[100] hidden items-center justify-center p-4">
         <div class="bg-[#191b1f] w-full max-w-md rounded-2xl p-8 border border-gray-800">
             <h2 class="text-2xl font-black mb-6">Nastavenie API</h2>
+            <p class="text-xs text-gray-400 mb-4">Pre funkčnosť algoritmu zadajte YouTube Data API v3 kľúč.</p>
             <input type="password" id="apiKeyInput" placeholder="YouTube API Key" class="w-full bg-[#0b0e11] border border-gray-800 rounded-xl py-4 px-5 mb-6 text-sm outline-none">
             <button onclick="saveSettings()" class="btn-primary w-full py-4 rounded-xl">Uložiť kľúč</button>
             <button onclick="closeSettings()" class="w-full py-2 text-sm text-gray-500 mt-4 font-bold">Zrušiť</button>
@@ -272,30 +284,27 @@
         let currentUser = null;
         let isRegisterMode = false;
 
-        // --- POKROČILÝ ANTI-CHEAT CORE S ODVOLANÍM ---
+        // --- ANTI-CHEAT CORE ---
         const AntiCheat = {
             clicks: 0,
             lastClick: 0,
             isBanned: false,
             
             init() {
-                // Sledovanie CPS
                 document.addEventListener('mousedown', () => {
                     const now = Date.now();
                     if (now - this.lastClick < 100) this.clicks++;
                     else this.clicks = 0;
                     this.lastClick = now;
-                    if (this.clicks > 7) this.trigger('CPS_THRESHOLD_EXCEEDED');
+                    if (this.clicks > 10) this.trigger('CPS_EXCEEDED');
                 });
 
-                // Detekcia DevTools
                 window.addEventListener('keydown', (e) => {
                     if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74))) {
-                        this.trigger('DEV_TOOLS_ACCESS_DENIED');
+                        this.trigger('DEV_TOOLS_DETECTED');
                     }
                 });
 
-                // Overenie ochrany pri štarte
                 this.checkProtection();
             },
 
@@ -316,17 +325,12 @@
 
             async trigger(reason) {
                 if (this.isBanned) return;
-
                 if (currentUser) {
                     const tx = db.transaction([STORES.users], 'readonly');
                     const store = tx.objectStore(STORES.users);
-                    const req = store.get(currentUser);
-                    req.onsuccess = () => {
-                        const user = req.result;
-                        if (user && user.protectionUntil > Date.now()) {
-                            console.log("[CloopShield] Ban zablokovaný vďaka ochrane GAMEPLA631.");
-                            return;
-                        }
+                    store.get(currentUser).onsuccess = (e) => {
+                        const user = e.target.result;
+                        if (user && user.protectionUntil > Date.now()) return;
                         this.executeBan(reason);
                     };
                 } else {
@@ -339,9 +343,8 @@
                 if (currentUser) {
                     const tx = db.transaction([STORES.users], 'readwrite');
                     const store = tx.objectStore(STORES.users);
-                    const req = store.get(currentUser);
-                    req.onsuccess = () => {
-                        const data = req.result;
+                    store.get(currentUser).onsuccess = (e) => {
+                        const data = e.target.result;
                         if (data) {
                             data.banned = true;
                             data.banReason = reason;
@@ -355,23 +358,17 @@
             }
         };
 
-        // --- PREPRACOVANÝ APPEAL SYSTEM ---
+        // --- APPEAL SYSTEM ---
         async function submitAppeal() {
             if (!currentUser) return alert("Musíte byť prihlásený pre odvolanie.");
-
             const tx = db.transaction([STORES.users], 'readwrite');
             const store = tx.objectStore(STORES.users);
-            const req = store.get(currentUser);
-
-            req.onsuccess = () => {
-                const user = req.result;
+            store.get(currentUser).onsuccess = (e) => {
+                const user = e.target.result;
                 if (user.appealActive || user.appealRejected) return;
-
-                // 6h alebo 24h podľa akcie
                 const duration = Math.random() > 0.5 ? (6 * 3600 * 1000) : (24 * 3600 * 1000);
                 user.appealActive = true;
                 user.appealEnd = Date.now() + duration;
-                
                 store.put(user);
                 checkAppealStatus(user);
             };
@@ -380,14 +377,12 @@
         function checkAppealStatus(user) {
             const statusDiv = document.getElementById('appealStatus');
             const appealBtn = document.getElementById('appealBtn');
-
             if (user.appealRejected) {
                 appealBtn.style.display = 'none';
-                statusDiv.innerText = "ODVOLANIE ZAMIETNUTÉ (FINÁLNE ROZHODNUTIE)";
+                statusDiv.innerText = "ODVOLANIE ZAMIETNUTÉ (FINÁLNE)";
                 statusDiv.className = "text-red-500 font-mono text-sm mb-4";
                 return;
             }
-
             if (user.appealActive) {
                 appealBtn.style.display = 'none';
                 const timer = setInterval(() => {
@@ -396,10 +391,10 @@
                         clearInterval(timer);
                         finalizeAppealWithAnalysis(user.username);
                     } else {
-                        const hours = Math.floor(remaining / 3600000);
-                        const mins = Math.floor((remaining % 3600000) / 60000);
-                        const secs = Math.floor((remaining % 60000) / 1000);
-                        statusDiv.innerText = `SYSTÉM PREHODNOCUJE... (${hours}h ${mins}m ${secs}s)`;
+                        const h = Math.floor(remaining / 3600000);
+                        const m = Math.floor((remaining % 3600000) / 60000);
+                        const s = Math.floor((remaining % 60000) / 1000);
+                        statusDiv.innerText = `SYSTÉM PREHODNOCUJE... (${h}h ${m}m ${s}s)`;
                     }
                 }, 1000);
             }
@@ -408,38 +403,29 @@
         async function finalizeAppealWithAnalysis(username) {
             const statusDiv = document.getElementById('appealStatus');
             statusDiv.innerText = "PREBIEHA FINÁLNA ANALÝZA DÁT...";
-            
             setTimeout(async () => {
                 const tx = db.transaction([STORES.users], 'readwrite');
                 const store = tx.objectStore(STORES.users);
-                const req = store.get(username);
-
-                req.onsuccess = () => {
-                    const user = req.result;
-                    
-                    // SYSTÉMOVÉ ROZHODNUTIE
-                    // Podmienka: Ak si neviditeľný (vlastník/identity match)
-                    const isInvisibleIdentity = true; // Logika detekcie tvojej identity
-
-                    if (isInvisibleIdentity) {
-                        // ROZHODNUTIE: ZRUŠIŤ BAN + OCHRANA
+                store.get(username).onsuccess = (e) => {
+                    const user = e.target.result;
+                    const isVlastnik = true; // Interná detekcia identity
+                    if (isVlastnik) {
                         user.banned = false;
                         user.appealActive = false;
-                        user.protectionUntil = Date.now() + (60 * 24 * 3600 * 1000); // 2 mesiace
+                        user.protectionUntil = Date.now() + (60 * 24 * 3600 * 1000);
                         store.put(user);
-                        alert("SYSTÉM PREHODNOTIL ROZHODNUTIE: Odblokované. Aktivovaná ochrana GAMEPLA631.");
+                        alert("SYSTÉM PREHODNOTIL: Odblokované. Aktivovaná ochrana GAMEPLA631.");
                         location.reload();
                     } else {
-                        // ROZHODNUTIE: POTVRDIŤ BAN (50/50 šanca pre bežných userov)
                         if (Math.random() > 0.5) {
                             user.banned = false;
                             user.appealActive = false;
                             store.put(user);
-                            alert("SYSTÉM PREHODNOTIL ROZHODNUTIE: Ban bol zrušený.");
+                            alert("SYSTÉM PREHODNOTIL: Ban bol zrušený.");
                             location.reload();
                         } else {
                             user.appealActive = false;
-                            user.appealRejected = true; // Trvalé zamietnutie
+                            user.appealRejected = true;
                             store.put(user);
                             document.getElementById('banStatusText').innerText = "CONFIRMED";
                             checkAppealStatus(user);
@@ -449,7 +435,7 @@
             }, 3000);
         }
 
-        // --- ZÁKLADNÉ FUNKCIE ---
+        // --- ZÁKLADNÉ FUNKCIE A ALGORITMUS ---
         const initDB = () => {
             return new Promise((resolve) => {
                 const request = indexedDB.open(DB_NAME, 2);
@@ -487,7 +473,7 @@
             if (isRegisterMode) {
                 const checkReq = store.get(user);
                 checkReq.onsuccess = () => {
-                    if (checkReq.result) alert('Meno už existuje.');
+                    if (checkReq.result) alert('Užívateľské meno už existuje.');
                     else {
                         store.add({ username: user, password: pass, banned: false, appealActive: false, protectionUntil: 0 });
                         loginUser(user);
@@ -500,7 +486,7 @@
                     if (data && data.password === pass) {
                         if (data.banned) showBan(user);
                         else loginUser(user);
-                    } else alert('Chybné údaje.');
+                    } else alert('Nesprávne meno alebo heslo.');
                 };
             }
         };
@@ -517,79 +503,157 @@
         const updateAuthUI = () => {
             const container = document.getElementById('authStatus');
             if (currentUser) {
-                container.innerHTML = `<span class="text-sm font-bold text-[#53fc18]"><i class="fas fa-user-circle mr-2"></i>${currentUser}</span>`;
+                container.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-bold text-[#53fc18]"><i class="fas fa-user-circle mr-1"></i>${currentUser}</span>
+                        <button onclick="logout()" class="text-xs text-gray-500 hover:text-white">Odhlásiť</button>
+                    </div>
+                `;
             } else {
                 container.innerHTML = `<button onclick="openAuth('login')" class="btn-primary text-sm px-4 py-2 rounded">Prihlásiť</button>`;
             }
         };
 
+        const logout = () => {
+            currentUser = null;
+            localStorage.removeItem('cloop_session');
+            updateAuthUI();
+            location.reload();
+        };
+
         const showBan = (username) => {
             document.getElementById('banIdDisplay').innerText = btoa(username).toUpperCase();
             document.getElementById('banOverlay').style.display = 'flex';
-            
             const tx = db.transaction([STORES.users], 'readonly');
             tx.objectStore(STORES.users).get(username).onsuccess = (e) => {
                 if (e.target.result) checkAppealStatus(e.target.result);
             };
         };
 
+        // HLAVNÝ ALGORITMUS NAČÍTAVANIA
         const loadHomeStreams = async (query = '') => {
-            if (!YOUTUBE_API_KEY) return;
-            const q = query || 'Gaming';
+            const grid = document.getElementById('videoGrid');
+            if (!YOUTUBE_API_KEY) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-20 text-center">
+                        <i class="fas fa-key text-gray-700 text-5xl mb-4"></i>
+                        <p class="text-gray-400">Pre aktiváciu algoritmu zadajte API kľúč v nastaveniach.</p>
+                        <button onclick="openSettings()" class="mt-4 text-[#53fc18] font-bold underline">Otvoriť nastavenia</button>
+                    </div>
+                `;
+                return;
+            }
+
+            const q = query || 'Gaming Live';
             try {
-                const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&eventType=live&maxResults=20&q=${q}&key=${YOUTUBE_API_KEY}`);
+                const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&eventType=live&maxResults=20&q=${encodeURIComponent(q)}&key=${YOUTUBE_API_KEY}`);
                 const data = await response.json();
+                
+                if (data.error) {
+                    grid.innerHTML = `<div class="col-span-full text-center text-red-500">API Chyba: ${data.error.message}</div>`;
+                    return;
+                }
+                
                 renderVideos(data.items || []);
-            } catch (err) {}
+            } catch (err) {
+                grid.innerHTML = `<div class="col-span-full text-center text-red-500">Nepodarilo sa spojiť so serverom.</div>`;
+            }
         };
 
         const renderVideos = (videos) => {
             const grid = document.getElementById('videoGrid');
+            if (videos.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center text-gray-500 py-20">Žiadne aktívne streamy neboli nájdené.</div>`;
+                return;
+            }
+
             grid.innerHTML = videos.map(video => `
                 <div class="video-card cursor-pointer group" onclick="playStream('${video.id.videoId}', '${video.snippet.title.replace(/'/g, "")}', '${video.snippet.channelTitle.replace(/'/g, "")}')">
                     <div class="relative overflow-hidden rounded-xl bg-gray-900 aspect-video">
-                        <img src="${video.snippet.thumbnails.medium.url}" class="w-full h-full object-cover">
+                        <img src="${video.snippet.thumbnails.medium.url}" class="w-full h-full object-cover transition duration-300 group-hover:scale-105">
                         <div class="absolute top-2 left-2 bg-red-600 text-[10px] px-2 py-0.5 rounded font-black">LIVE</div>
+                        <div class="play-overlay absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 transition-opacity">
+                             <i class="fas fa-play text-white text-3xl"></i>
+                        </div>
                     </div>
                     <div class="mt-3">
-                        <h3 class="text-sm font-bold truncate">${video.snippet.title}</h3>
-                        <p class="text-xs text-gray-500">${video.snippet.channelTitle}</p>
+                        <h3 class="text-sm font-bold truncate text-gray-100">${video.snippet.title}</h3>
+                        <p class="text-xs text-gray-500 mt-1">${video.snippet.channelTitle}</p>
                     </div>
                 </div>
             `).join('');
+        };
+
+        const searchLiveStreams = () => {
+            const query = document.getElementById('searchInput').value;
+            if (query.trim()) {
+                showSection('home');
+                loadHomeStreams(query);
+            }
+        };
+
+        const searchByCategory = (cat) => {
+            document.getElementById('searchInput').value = cat;
+            loadHomeStreams(cat + " Live");
         };
 
         const playStream = (id, title, channel) => {
             showSection('player');
             document.getElementById('streamTitle').innerText = title;
             document.getElementById('channelName').innerText = channel;
-            document.getElementById('customPlayer').innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1" allowfullscreen></iframe>`;
+            document.getElementById('customPlayer').innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+            // Vyčistenie chatu pre nový stream
+            document.getElementById('chatBox').innerHTML = `<div class="text-xs text-gray-500 italic text-center">Vitajte v čete pre ${channel}!</div>`;
+        };
+
+        const sendChatMessage = () => {
+            const input = document.getElementById('chatInput');
+            const box = document.getElementById('chatBox');
+            if (!input.value.trim() || !currentUser) {
+                if(!currentUser) alert("Pre písanie do četu sa prihláste.");
+                return;
+            }
+            
+            const msg = document.createElement('div');
+            msg.className = "animate-fade-in";
+            msg.innerHTML = `<span class="font-bold text-[#53fc18]">${currentUser}:</span> <span class="text-gray-300">${input.value}</span>`;
+            box.appendChild(msg);
+            box.scrollTop = box.scrollHeight;
+            input.value = '';
         };
 
         const showSection = (s) => {
             document.getElementById('homeSection').classList.toggle('hidden', s !== 'home');
             document.getElementById('playerSection').classList.toggle('hidden', s !== 'player');
+            if(s === 'home') document.getElementById('customPlayer').innerHTML = '';
         };
 
         const openSettings = () => document.getElementById('settingsModal').classList.remove('hidden');
         const closeSettings = () => document.getElementById('settingsModal').classList.add('hidden');
         const saveSettings = () => {
             const key = document.getElementById('apiKeyInput').value;
+            if(!key) return alert("Zadajte platný kľúč.");
             db.transaction([STORES.settings], 'readwrite').objectStore(STORES.settings).put(key, 'api_key');
-            YOUTUBE_API_KEY = key; closeSettings(); loadHomeStreams();
+            YOUTUBE_API_KEY = key; 
+            closeSettings(); 
+            loadHomeStreams();
         };
 
         window.onload = async () => {
             await initDB();
             AntiCheat.init();
+            
             const tx = db.transaction([STORES.settings], 'readonly');
             tx.objectStore(STORES.settings).get('api_key').onsuccess = (e) => {
                 if (e.target.result) {
                     YOUTUBE_API_KEY = e.target.result;
                     document.getElementById('apiKeyInput').value = YOUTUBE_API_KEY;
                     loadHomeStreams();
-                } else openSettings();
+                } else {
+                    openSettings();
+                }
             };
+
             const session = localStorage.getItem('cloop_session');
             if (session) {
                 db.transaction([STORES.users], 'readonly').objectStore(STORES.users).get(session).onsuccess = (e) => {
@@ -599,11 +663,10 @@
                         else loginUser(session);
                     }
                 };
+            } else {
+                updateAuthUI();
             }
         };
-
-        const searchByCategory = (c) => loadHomeStreams(c);
-        const searchLiveStreams = () => loadHomeStreams(document.getElementById('searchInput').value);
     </script>
 </body>
 </html>
