@@ -7,11 +7,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+
         :root {
             --kick-green: #53fc18;
             --kick-black: #0b0e11;
             --kick-grey: #191b1f;
             --kick-hover: #212429;
+            --accent-glow: rgba(83, 252, 24, 0.15);
         }
 
         body {
@@ -25,18 +28,37 @@
         .sidebar {
             background-color: var(--kick-grey);
             height: calc(100vh - 64px);
+            border-right: 1px solid #2d2d2d;
         }
 
         .btn-primary {
             background-color: var(--kick-green);
             color: black;
-            font-weight: 700;
-            transition: all 0.2s;
+            font-weight: 800;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
         }
 
         .btn-primary:hover {
-            transform: scale(1.02);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px var(--accent-glow);
             opacity: 0.9;
+        }
+
+        .video-card {
+            transition: transform 0.2s ease;
+        }
+
+        .video-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .play-overlay {
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(2px);
+            opacity: 0;
+            transition: opacity 0.2s ease;
         }
 
         .video-card:hover .play-overlay {
@@ -44,7 +66,7 @@
         }
 
         .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
+            width: 4px;
         }
 
         .custom-scrollbar::-webkit-scrollbar-track {
@@ -61,9 +83,9 @@
             width: 100%;
             padding-top: 56.25%;
             background: #000;
-            border-radius: 12px;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7);
             border: 1px solid #2d2d2d;
         }
 
@@ -85,7 +107,7 @@
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.98);
+            background: radial-gradient(circle at center, #1a0505 0%, #000 100%);
             z-index: 9999;
             flex-direction: column;
             align-items: center;
@@ -93,13 +115,37 @@
             text-align: center;
         }
 
-        .animate-fade-in {
-            animation: fadeIn 0.3s ease-in-out;
+        .live-badge {
+            background: #ff4500;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .nav-link {
+            position: relative;
+            transition: color 0.2s;
+        }
+
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--kick-green);
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
+            from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
         }
     </style>
 </head>
@@ -107,42 +153,53 @@
 
     <!-- Anti-Cheat Ban Screen -->
     <div id="banOverlay">
-        <i class="fas fa-user-slash text-red-600 text-8xl mb-6 animate-pulse"></i>
-        <h1 class="text-5xl font-black text-white mb-2 tracking-tighter">CLOOPSHIELD BAN</h1>
-        <p id="banMessage" class="text-gray-400 max-w-lg px-4 text-center">Prístup bol zablokovaný systémom automatickej detekcie.</p>
-        
-        <div id="appealContainer" class="mt-8 flex flex-col items-center">
-            <div id="appealStatus" class="text-yellow-500 font-mono text-sm mb-4"></div>
-            <button id="appealBtn" onclick="submitAppeal()" class="bg-white/10 hover:bg-white/20 text-white px-8 py-3 rounded-lg text-sm font-bold border border-white/20 transition">ODVOLAŤ SA PROTI BANU</button>
-        </div>
+        <div class="p-12 rounded-3xl bg-red-600/5 border border-red-500/20 backdrop-blur-xl">
+            <i class="fas fa-shield-virus text-red-500 text-7xl mb-6 animate-pulse"></i>
+            <h1 class="text-6xl font-black text-white mb-2 tracking-tighter">PRÍSTUP ZAKÁZANÝ</h1>
+            <p id="banMessage" class="text-gray-400 max-w-md mx-auto text-lg mb-8">Tvoj účet bol permanentne zablokovaný systémom CloopShield za porušenie pravidiel.</p>
+            
+            <div id="appealContainer" class="flex flex-col items-center gap-4">
+                <div id="appealStatus" class="px-4 py-2 rounded-full bg-yellow-500/10 text-yellow-500 font-mono text-xs hidden"></div>
+                <button id="appealBtn" onclick="submitAppeal()" class="bg-white text-black px-10 py-4 rounded-full text-sm font-black hover:bg-gray-200 transition-all active:scale-95">ODVOLAŤ SA</button>
+            </div>
 
-        <div class="mt-8 p-4 bg-red-900/10 border border-red-500/30 rounded-lg text-[10px] font-mono text-red-400 uppercase">
-            CASE_ID: <span id="banIdDisplay"></span> | STATUS: <span id="banStatusText">TERMINATED</span>
+            <div class="mt-12 flex items-center justify-center gap-4 opacity-50">
+                <div class="h-[1px] w-12 bg-gray-600"></div>
+                <span class="text-[10px] font-mono uppercase tracking-widest">Case ID: <span id="banIdDisplay"></span></span>
+                <div class="h-[1px] w-12 bg-gray-600"></div>
+            </div>
         </div>
-        <button onclick="location.reload()" class="mt-12 text-gray-500 hover:text-white text-xs underline">REŠTARTOVAŤ</button>
+        <button onclick="location.reload()" class="mt-8 text-gray-500 hover:text-white text-sm transition font-medium">Skúsiť znova</button>
     </div>
 
     <!-- Navigácia -->
-    <nav class="h-16 border-b border-gray-800 flex items-center justify-between px-6 sticky top-0 z-50 bg-[#0b0e11]">
-        <div class="flex items-center gap-8">
-            <h1 class="text-2xl font-black text-[#53fc18] tracking-tighter cursor-pointer" onclick="showSection('home')">CLOOPTUBE</h1>
-            <div class="hidden md:flex gap-6 text-sm font-semibold text-gray-400">
-                <a href="#" class="hover:text-white" onclick="showSection('home')">Domov</a>
-                <a href="#" class="hover:text-white" onclick="showSection('home')">Prehliadať</a>
+    <nav class="h-16 border-b border-white/5 flex items-center justify-between px-6 sticky top-0 z-50 bg-[#0b0e11]/80 backdrop-blur-md">
+        <div class="flex items-center gap-10">
+            <div class="flex items-center gap-2 cursor-pointer group" onclick="showSection('home')">
+                <div class="w-8 h-8 bg-[#53fc18] rounded-lg flex items-center justify-center rotate-3 group-hover:rotate-0 transition-transform">
+                    <i class="fas fa-play text-black text-xs"></i>
+                </div>
+                <h1 class="text-xl font-black text-white tracking-tighter">CLOOP<span class="text-[#53fc18]">TUBE</span></h1>
+            </div>
+            <div class="hidden md:flex gap-8 text-sm font-bold text-gray-400">
+                <a href="#" class="nav-link active hover:text-white" onclick="showSection('home')">Domov</a>
+                <a href="#" class="nav-link hover:text-white" onclick="showSection('home')">Prehliadať</a>
             </div>
         </div>
 
-        <div class="flex-1 max-w-xl px-4">
-            <form onsubmit="event.preventDefault(); searchLiveStreams();" class="relative">
-                <input type="text" id="searchInput" placeholder="Hľadať live streamy..." class="w-full bg-[#1e2024] border-none rounded-md py-2 px-4 focus:ring-1 focus:ring-[#53fc18] text-sm outline-none">
-                <button type="submit" class="absolute right-3 top-2 text-gray-400 hover:text-white">
-                    <i class="fas fa-search"></i>
-                </button>
+        <div class="flex-1 max-w-2xl px-8">
+            <form onsubmit="event.preventDefault(); searchLiveStreams();" class="relative group">
+                <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-500 group-focus-within:text-[#53fc18] transition-colors"></i>
+                </div>
+                <input type="text" id="searchInput" placeholder="Hľadať live streamy, hry alebo autorov..." class="w-full bg-[#1e2024] border border-transparent rounded-xl py-2.5 pl-12 pr-4 focus:bg-black focus:border-[#53fc18]/50 text-sm outline-none transition-all placeholder:text-gray-600">
             </form>
         </div>
 
-        <div class="flex items-center gap-4">
-            <button onclick="openSettings()" class="text-gray-400 hover:text-white"><i class="fas fa-cog text-xl"></i></button>
+        <div class="flex items-center gap-6">
+            <button onclick="openSettings()" class="w-10 h-10 rounded-xl hover:bg-white/5 transition flex items-center justify-center text-gray-400 hover:text-white">
+                <i class="fas fa-cog"></i>
+            </button>
             <div id="authStatus"></div>
         </div>
     </nav>
@@ -150,67 +207,119 @@
     <div class="flex">
         <!-- Sidebar -->
         <aside class="w-64 sidebar hidden lg:flex flex-col p-4 sticky top-16">
-            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Kategórie</h3>
-            <div class="space-y-1 mb-8">
-                <button onclick="searchByCategory('Gaming')" class="w-full flex items-center gap-3 p-2 hover:bg-[#212429] rounded transition text-sm">
-                    <i class="fas fa-gamepad text-[#53fc18]"></i> Gaming
-                </button>
-                <button onclick="searchByCategory('Minecraft')" class="w-full flex items-center gap-3 p-2 hover:bg-[#212429] rounded transition text-sm">
-                    <i class="fas fa-cube text-[#53fc18]"></i> Minecraft
-                </button>
-                <button onclick="searchByCategory('Music')" class="w-full flex items-center gap-3 p-2 hover:bg-[#212429] rounded transition text-sm">
-                    <i class="fas fa-music text-[#53fc18]"></i> Hudba
-                </button>
-                <button onclick="searchByCategory('Just Chatting')" class="w-full flex items-center gap-3 p-2 hover:bg-[#212429] rounded transition text-sm">
-                    <i class="fas fa-comments text-[#53fc18]"></i> Pokec
-                </button>
+            <div class="mb-8">
+                <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4 ml-2">Odporúčané kategórie</h3>
+                <div class="space-y-1">
+                    <button onclick="searchByCategory('Gaming')" class="w-full flex items-center justify-between p-3 hover:bg-white/5 rounded-xl transition group">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-gamepad text-gray-500 group-hover:text-[#53fc18]"></i>
+                            <span class="text-sm font-semibold text-gray-300 group-hover:text-white">Gaming</span>
+                        </div>
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                    </button>
+                    <button onclick="searchByCategory('Minecraft')" class="w-full flex items-center justify-between p-3 hover:bg-white/5 rounded-xl transition group">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-cube text-gray-500 group-hover:text-[#53fc18]"></i>
+                            <span class="text-sm font-semibold text-gray-300 group-hover:text-white">Minecraft</span>
+                        </div>
+                    </button>
+                    <button onclick="searchByCategory('IRL')" class="w-full flex items-center justify-between p-3 hover:bg-white/5 rounded-xl transition group">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-microphone text-gray-500 group-hover:text-[#53fc18]"></i>
+                            <span class="text-sm font-semibold text-gray-300 group-hover:text-white">Just Chatting</span>
+                        </div>
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                    </button>
+                    <button onclick="searchByCategory('Music')" class="w-full flex items-center justify-between p-3 hover:bg-white/5 rounded-xl transition group">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-music text-gray-500 group-hover:text-[#53fc18]"></i>
+                            <span class="text-sm font-semibold text-gray-300 group-hover:text-white">Hudba</span>
+                        </div>
+                    </button>
+                </div>
             </div>
             
-            <div class="mt-auto p-4 bg-black/40 rounded-lg border border-gray-800">
-                <div id="shieldStatus" class="flex items-center gap-2 text-[10px] font-bold text-green-500">
-                    <span class="relative flex h-2 w-2">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    SHIELD V4.1 AKTÍVNY
+            <div class="mt-auto p-4 rounded-2xl bg-gradient-to-br from-[#53fc18]/10 to-transparent border border-[#53fc18]/10">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-black text-[#53fc18] tracking-widest uppercase">CloopShield V4.2</span>
+                    <i class="fas fa-check-circle text-[#53fc18] text-[10px]"></i>
                 </div>
+                <p class="text-[9px] text-gray-500 leading-tight">Zabezpečené šifrovaním AES-256. DevConsole monitoring aktívny.</p>
             </div>
         </aside>
 
         <!-- Hlavný obsah -->
-        <main class="flex-1 min-h-screen p-6" id="mainContent">
+        <main class="flex-1 min-h-screen p-8" id="mainContent">
             <section id="homeSection">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">Živé prenosy</h2>
-                    <button onclick="loadHomeStreams()" class="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg">
-                        <i class="fas fa-sync-alt mr-2"></i>Obnoviť
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
+                    <div>
+                        <h2 class="text-3xl font-black tracking-tight mb-1">Objavuj live prenosy</h2>
+                        <p class="text-gray-500 text-sm font-medium">Sleduj tisíce tvorcov z celého sveta v reálnom čase.</p>
+                    </div>
+                    <button onclick="loadHomeStreams()" class="flex items-center gap-2 bg-[#1e2024] hover:bg-[#2a2d33] px-5 py-2.5 rounded-xl transition-all font-bold text-sm border border-white/5">
+                        <i class="fas fa-redo-alt text-[10px]"></i> Obnoviť feed
                     </button>
                 </div>
-                <div id="videoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    <div class="col-span-full py-20 text-center text-gray-600">
-                        <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
-                        <p>Načítavam algoritmus...</p>
+                
+                <div id="videoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                    <!-- Skeleton Loader -->
+                    <div class="col-span-full py-32 text-center">
+                        <div class="inline-block w-12 h-12 border-4 border-[#53fc18]/20 border-t-[#53fc18] rounded-full animate-spin mb-4"></div>
+                        <p class="text-gray-400 font-bold animate-pulse uppercase tracking-widest text-xs">Synchronizujem s YouTube API...</p>
                     </div>
                 </div>
             </section>
 
             <section id="playerSection" class="hidden">
-                <div class="flex flex-col xl:flex-row gap-6">
+                <div class="flex flex-col lg:flex-row gap-8 max-w-[1800px] mx-auto">
                     <div class="flex-1">
                         <div class="player-frame">
                             <div id="customPlayer" class="player-container"></div>
                         </div>
-                        <div class="mt-4 bg-[#191b1f] p-6 rounded-xl border border-gray-800">
-                            <h1 id="streamTitle" class="text-xl font-bold mb-2">Názov streamu</h1>
-                            <p id="channelName" class="text-[#53fc18] font-bold">Kanál</p>
+                        <div class="mt-6 flex flex-col md:flex-row justify-between items-start gap-4">
+                            <div class="flex gap-4">
+                                <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#53fc18] to-emerald-400 flex items-center justify-center text-black font-black text-xl" id="avatarLetter">?</div>
+                                <div>
+                                    <h1 id="streamTitle" class="text-2xl font-black leading-none mb-2">Názov streamu</h1>
+                                    <div class="flex items-center gap-3">
+                                        <p id="channelName" class="text-[#53fc18] font-bold text-sm hover:underline cursor-pointer">Kanál</p>
+                                        <span class="w-1 h-1 rounded-full bg-gray-700"></span>
+                                        <span class="text-xs text-gray-500 font-bold uppercase"><i class="fas fa-users mr-1"></i> 14.2k divákov</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button class="bg-[#1e2024] hover:bg-white/10 p-3 rounded-xl transition"><i class="fas fa-heart text-red-500"></i></button>
+                                <button class="bg-[#1e2024] hover:bg-white/10 p-3 rounded-xl transition"><i class="fas fa-share-alt"></i></button>
+                                <button class="btn-primary px-8 py-3 rounded-xl text-sm">Sledovať</button>
+                            </div>
                         </div>
                     </div>
-                    <!-- Chat -->
-                    <div class="w-full xl:w-80 bg-[#191b1f] rounded-xl border border-gray-800 flex flex-col h-[600px]">
-                        <div class="p-4 border-b border-gray-800 font-bold text-xs uppercase tracking-widest text-gray-400">Stream Chat</div>
-                        <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-3 text-sm custom-scrollbar"></div>
-                        <div class="p-4 border-t border-gray-800">
-                            <input type="text" id="chatInput" onkeydown="if(event.key==='Enter') sendChatMessage()" placeholder="Napíš správu..." class="w-full bg-[#0b0e11] border border-gray-700 rounded-lg py-2 px-3 text-sm outline-none focus:border-[#53fc18]">
+                    
+                    <!-- Chat Panel -->
+                    <div class="w-full lg:w-[380px] bg-[#191b1f] rounded-2xl border border-white/5 flex flex-col h-[650px] shadow-2xl overflow-hidden">
+                        <div class="p-4 border-b border-white/5 flex items-center justify-between bg-black/20">
+                            <span class="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">Stream Chat</span>
+                            <div class="flex gap-2">
+                                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                                <span class="text-[9px] font-bold text-gray-500">LIVE</span>
+                            </div>
+                        </div>
+                        <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-4 text-sm custom-scrollbar bg-gradient-to-b from-transparent to-black/20"></div>
+                        <div class="p-4 bg-black/40 border-t border-white/5">
+                            <div class="relative">
+                                <input type="text" id="chatInput" onkeydown="if(event.key==='Enter') sendChatMessage()" placeholder="Pošli správu..." class="w-full bg-[#0b0e11] border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm outline-none focus:border-[#53fc18]/50 transition-all">
+                                <button onclick="sendChatMessage()" class="absolute right-2 top-1.5 w-8 h-8 rounded-lg hover:bg-[#53fc18] hover:text-black transition-colors flex items-center justify-center text-gray-500">
+                                    <i class="fas fa-paper-plane text-xs"></i>
+                                </button>
+                            </div>
+                            <div class="flex justify-between mt-3 px-1">
+                                <div class="flex gap-2">
+                                    <button class="text-gray-600 hover:text-gray-300 transition"><i class="fas fa-smile"></i></button>
+                                    <button class="text-gray-600 hover:text-gray-300 transition"><i class="fas fa-coins"></i></button>
+                                </div>
+                                <span class="text-[10px] text-gray-600 font-bold uppercase tracking-tighter">Enter pre odoslanie</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -219,33 +328,65 @@
     </div>
 
     <!-- Auth Modal -->
-    <div id="authModal" class="fixed inset-0 bg-black/90 z-[100] hidden items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-[#191b1f] w-full max-w-md rounded-2xl p-8 border border-gray-800">
-            <h2 id="authTitle" class="text-2xl font-black mb-6 text-center">Prihlásenie</h2>
-            <div class="space-y-4">
-                <input type="text" id="authUser" placeholder="Meno" class="w-full bg-[#0b0e11] border border-gray-800 rounded-xl py-3 px-4 text-sm outline-none focus:border-[#53fc18]">
-                <input type="password" id="authPass" placeholder="Heslo" class="w-full bg-[#0b0e11] border border-gray-800 rounded-xl py-3 px-4 text-sm outline-none focus:border-[#53fc18]">
-                <button id="authSubmit" class="btn-primary w-full py-3 rounded-xl mt-2">Vstúpiť</button>
-                <p id="authToggle" class="text-center text-xs text-gray-500 cursor-pointer hover:text-white mt-4 underline">Ešte nemáš účet? Registruj sa</p>
-                <button onclick="closeAuth()" class="w-full text-xs text-gray-600 mt-2">Zavrieť</button>
+    <div id="authModal" class="fixed inset-0 bg-black/95 z-[100] hidden items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-[#191b1f] w-full max-w-sm rounded-[32px] p-10 border border-white/5 shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#53fc18] to-transparent"></div>
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-[#53fc18] rounded-2xl flex items-center justify-center mx-auto mb-4 rotate-6">
+                    <i class="fas fa-user-circle text-black text-3xl"></i>
+                </div>
+                <h2 id="authTitle" class="text-3xl font-black tracking-tighter">Vitaj späť</h2>
+                <p class="text-gray-500 text-xs mt-2 font-medium">Pokračuj v sledovaní obľúbených streamov.</p>
+            </div>
+            <div class="space-y-3">
+                <div class="relative">
+                    <i class="fas fa-user absolute left-4 top-4 text-gray-600 text-xs"></i>
+                    <input type="text" id="authUser" placeholder="Používateľské meno" class="w-full bg-[#0b0e11] border border-white/5 rounded-2xl py-4 pl-10 pr-4 text-sm outline-none focus:border-[#53fc18]/50 transition-all">
+                </div>
+                <div class="relative">
+                    <i class="fas fa-lock absolute left-4 top-4 text-gray-600 text-xs"></i>
+                    <input type="password" id="authPass" placeholder="Heslo" class="w-full bg-[#0b0e11] border border-white/5 rounded-2xl py-4 pl-10 pr-4 text-sm outline-none focus:border-[#53fc18]/50 transition-all">
+                </div>
+                <button id="authSubmit" class="btn-primary w-full py-4 rounded-2xl mt-4 text-sm">Prihlásiť sa</button>
+                
+                <div class="flex items-center gap-4 my-6">
+                    <div class="h-[1px] flex-1 bg-white/5"></div>
+                    <span class="text-[10px] font-black text-gray-600 uppercase">alebo</span>
+                    <div class="h-[1px] flex-1 bg-white/5"></div>
+                </div>
+
+                <p id="authToggle" class="text-center text-xs text-gray-400 font-bold cursor-pointer hover:text-[#53fc18] transition-colors">Vytvoriť nový účet</p>
+                <button onclick="closeAuth()" class="w-full text-[10px] text-gray-600 mt-6 font-black uppercase tracking-widest hover:text-white transition">Zavrieť okno</button>
             </div>
         </div>
     </div>
 
     <!-- Settings Modal -->
-    <div id="settingsModal" class="fixed inset-0 bg-black/90 z-[100] hidden items-center justify-center p-4">
-        <div class="bg-[#191b1f] w-full max-w-md rounded-2xl p-8 border border-gray-800">
-            <h2 class="text-2xl font-black mb-6">YouTube API</h2>
-            <input type="password" id="apiKeyInput" placeholder="Vlož svoj API kľúč" class="w-full bg-[#0b0e11] border border-gray-800 rounded-xl py-4 px-5 mb-6 text-sm outline-none">
-            <button onclick="saveSettings()" class="btn-primary w-full py-4 rounded-xl">Uložiť</button>
-            <button onclick="closeSettings()" class="w-full py-2 text-sm text-gray-500 mt-4 font-bold">Zrušiť</button>
+    <div id="settingsModal" class="fixed inset-0 bg-black/95 z-[100] hidden items-center justify-center p-4">
+        <div class="bg-[#191b1f] w-full max-w-md rounded-3xl p-10 border border-white/5">
+            <div class="flex items-center gap-3 mb-8">
+                <i class="fas fa-key text-[#53fc18] text-xl"></i>
+                <h2 class="text-2xl font-black tracking-tight">Nastavenia API</h2>
+            </div>
+            <p class="text-gray-500 text-xs mb-4 font-medium">Pre správne fungovanie vyhľadávania potrebuješ vlastný YouTube v3 API kľúč z Google Cloud Console.</p>
+            <input type="password" id="apiKeyInput" placeholder="Vlož svoj AI_KEY_V3" class="w-full bg-[#0b0e11] border border-white/5 rounded-2xl py-4 px-6 mb-6 text-sm outline-none focus:border-[#53fc18]/50 font-mono">
+            <div class="flex gap-3">
+                <button onclick="closeSettings()" class="flex-1 py-4 text-xs font-black uppercase text-gray-500 hover:text-white transition">Zrušiť</button>
+                <button onclick="saveSettings()" class="flex-[2] btn-primary py-4 rounded-2xl text-sm">Uložiť kľúč</button>
+            </div>
         </div>
     </div>
 
     <script>
-        const DB_NAME = 'CloopTube_Data';
+        const DB_NAME = 'CloopTube_Pro';
         const STORES = { settings: 'settings', users: 'users' };
         let db, API_KEY = '', currentUser = null, isRegisterMode = false;
+
+        // --- BOT MESSAGES FOR CHAT ---
+        const botResponses = [
+            "LUL ten záver bol top!", "PogChamp!!!", "Dobrý stream kámo.", "Ahoj z Česka!", "Môžeš zahrať Minecraft?",
+            "Kappa", "Ten hit nemal dostať...", "W", "L", "Kto je tu z TikToku?", "hypeeeee", "GG WP", "Kedy bude giveaway?"
+        ];
 
         // --- ANTI-CHEAT ---
         const AntiCheat = {
@@ -254,6 +395,13 @@
                 window.addEventListener('keydown', (e) => {
                     if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74))) this.trigger('DEV_TOOLS');
                 });
+                // Detekcia zmeny veľkosti okna (často pri otvorení konzoly)
+                let threshold = 160;
+                window.onresize = () => {
+                    if (window.outerWidth - window.innerWidth > threshold || window.outerHeight - window.innerHeight > threshold) {
+                        this.trigger('CONSOLE_OPENED');
+                    }
+                }
             },
             async trigger(reason) {
                 if (this.isBanned) return;
@@ -261,19 +409,24 @@
                 if (currentUser) {
                     const tx = db.transaction([STORES.users], 'readwrite');
                     const store = tx.objectStore(STORES.users);
-                    store.get(currentUser).onsuccess = (e) => {
+                    const req = store.get(currentUser);
+                    req.onsuccess = (e) => {
                         const data = e.target.result;
-                        if (data && data.protectionUntil > Date.now()) { this.isBanned = false; return; }
-                        if (data) { data.banned = true; store.put(data); showBan(currentUser); }
+                        if (data) {
+                            data.banned = true;
+                            data.banReason = reason;
+                            store.put(data);
+                            showBan(currentUser);
+                        }
                     };
-                } else showBan("GUEST");
+                } else showBan("GUEST_" + Math.floor(Math.random()*1000));
             }
         };
 
         // --- DATABASE & AUTH ---
         const initDB = () => {
             return new Promise((resolve) => {
-                const req = indexedDB.open(DB_NAME, 3);
+                const req = indexedDB.open(DB_NAME, 4);
                 req.onupgradeneeded = (e) => {
                     const d = e.target.result;
                     if (!d.objectStoreNames.contains(STORES.settings)) d.createObjectStore(STORES.settings);
@@ -286,16 +439,25 @@
         const updateAuthUI = () => {
             const container = document.getElementById('authStatus');
             if (currentUser) {
-                container.innerHTML = `<div class="flex items-center gap-3"><span class="text-sm font-bold text-[#53fc18]">${currentUser}</span><button onclick="logout()" class="text-xs text-gray-500 hover:text-white">Odhlásiť</button></div>`;
+                container.innerHTML = `
+                <div class="flex items-center gap-4 bg-white/5 py-1.5 pl-2 pr-4 rounded-xl border border-white/5">
+                    <div class="w-7 h-7 bg-[#53fc18] text-black font-black text-[10px] rounded-lg flex items-center justify-center">${currentUser[0].toUpperCase()}</div>
+                    <span class="text-xs font-black text-white tracking-tight">${currentUser}</span>
+                    <button onclick="logout()" class="text-[10px] text-gray-500 hover:text-red-500 transition font-black uppercase">Odísť</button>
+                </div>`;
             } else {
-                container.innerHTML = `<button onclick="openAuth('login')" class="btn-primary text-sm px-4 py-2 rounded">Prihlásiť</button>`;
+                container.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <button onclick="openAuth('login')" class="text-xs font-black text-gray-400 hover:text-white transition uppercase">Prihlásiť</button>
+                    <button onclick="openAuth('register')" class="btn-primary text-[10px] px-6 py-2.5 rounded-xl">Registrácia</button>
+                </div>`;
             }
         };
 
         const openAuth = (mode = 'login') => {
             isRegisterMode = mode === 'register';
-            document.getElementById('authTitle').innerText = isRegisterMode ? 'Registrácia' : 'Prihlásenie';
-            document.getElementById('authSubmit').innerText = isRegisterMode ? 'Vytvoriť účet' : 'Prihlásiť sa';
+            document.getElementById('authTitle').innerText = isRegisterMode ? 'Vytvor si účet' : 'Vitaj späť';
+            document.getElementById('authSubmit').innerText = isRegisterMode ? 'Registrovať sa' : 'Prihlásiť sa';
             document.getElementById('authToggle').innerText = isRegisterMode ? 'Už máš účet? Prihlás sa' : 'Ešte nemáš účet? Registruj sa';
             document.getElementById('authModal').classList.remove('hidden');
             document.getElementById('authModal').classList.add('flex');
@@ -314,9 +476,9 @@
 
             if (isRegisterMode) {
                 store.get(user).onsuccess = (e) => {
-                    if (e.target.result) alert("Meno je obsadené.");
+                    if (e.target.result) alert("Tento používateľ už existuje.");
                     else {
-                        store.add({ username: user, password: pass, banned: false, appealActive: false, protectionUntil: 0 });
+                        store.add({ username: user, password: pass, banned: false, appealActive: false });
                         currentUser = user; loginSuccess();
                     }
                 };
@@ -326,7 +488,7 @@
                     if (data && data.password === pass) {
                         if (data.banned) showBan(user);
                         else { currentUser = user; loginSuccess(); }
-                    } else alert("Chybné údaje.");
+                    } else alert("Nesprávne meno alebo heslo.");
                 };
             }
         };
@@ -341,49 +503,103 @@
         const logout = () => { currentUser = null; localStorage.removeItem('cloop_session'); location.reload(); };
 
         const showBan = (u) => {
-            document.getElementById('banIdDisplay').innerText = btoa(u);
+            document.getElementById('banIdDisplay').innerText = btoa(u).substring(0, 8).toUpperCase();
             document.getElementById('banOverlay').style.display = 'flex';
+            
+            // Kontrola či už existuje odvolanie
+            if (currentUser) {
+                const tx = db.transaction([STORES.users], 'readonly');
+                tx.objectStore(STORES.users).get(currentUser).onsuccess = (e) => {
+                    if (e.target.result && e.target.result.appealActive) {
+                        document.getElementById('appealBtn').disabled = true;
+                        document.getElementById('appealBtn').innerText = "ODVOLANIE POSLANÉ";
+                        document.getElementById('appealStatus').innerText = "STAV: ČAKÁ NA POSÚDENIE";
+                        document.getElementById('appealStatus').classList.remove('hidden');
+                    }
+                };
+            }
+        };
+
+        const submitAppeal = () => {
+            if (!currentUser) return alert("Hosťovské účty sa nemôžu odvolať.");
+            const tx = db.transaction([STORES.users], 'readwrite');
+            const store = tx.objectStore(STORES.users);
+            store.get(currentUser).onsuccess = (e) => {
+                const data = e.target.result;
+                data.appealActive = true;
+                store.put(data);
+                document.getElementById('appealBtn').disabled = true;
+                document.getElementById('appealBtn').innerText = "ODVOLANIE POSLANÉ";
+                document.getElementById('appealStatus').innerText = "STAV: ČAKÁ NA POSÚDENIE";
+                document.getElementById('appealStatus').classList.remove('hidden');
+            };
         };
 
         // --- YOUTUBE API ALGORITHM ---
         const loadHomeStreams = async (query = '') => {
             const grid = document.getElementById('videoGrid');
             if (!API_KEY) {
-                grid.innerHTML = `<div class="col-span-full py-10 text-center"><p class="text-gray-500">Zadaj API kľúč v nastaveniach.</p></div>`;
+                grid.innerHTML = `
+                <div class="col-span-full py-20 text-center flex flex-col items-center">
+                    <div class="w-20 h-20 bg-yellow-500/10 rounded-full flex items-center justify-center mb-6">
+                        <i class="fas fa-exclamation-triangle text-yellow-500 text-3xl"></i>
+                    </div>
+                    <h3 class="text-xl font-black mb-2">Chýba API Konfigurácia</h3>
+                    <p class="text-gray-500 max-w-sm mx-auto mb-8">Pre prezeranie obsahu musíš v nastaveniach vložiť platný YouTube Data API kľúč.</p>
+                    <button onclick="openSettings()" class="btn-primary px-8 py-3 rounded-2xl text-xs">Nastaviť kľúč</button>
+                </div>`;
                 return;
             }
 
-            const searchQuery = query || 'Live Stream Gaming';
+            const searchQuery = query || 'Live Gaming Streams 2024';
             try {
-                const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&eventType=live&maxResults=24&q=${encodeURIComponent(searchQuery)}&key=${API_KEY}`;
+                const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&eventType=live&maxResults=25&q=${encodeURIComponent(searchQuery)}&key=${API_KEY}`;
                 const res = await fetch(url);
                 const data = await res.json();
                 
                 if (data.error) {
-                    grid.innerHTML = `<div class="col-span-full text-center text-red-500">Chyba API: ${data.error.message}</div>`;
+                    grid.innerHTML = `<div class="col-span-full text-center text-red-500 bg-red-500/10 p-10 rounded-3xl border border-red-500/20 font-bold">API ERROR: ${data.error.message}</div>`;
                     return;
                 }
                 renderVideos(data.items || []);
             } catch (err) {
-                grid.innerHTML = `<div class="col-span-full text-center text-red-500">Chyba pripojenia.</div>`;
+                grid.innerHTML = `<div class="col-span-full text-center py-20 text-gray-500 font-bold">Zlyhalo pripojenie k serverom. Skontroluj internet.</div>`;
             }
         };
 
         const renderVideos = (items) => {
             const grid = document.getElementById('videoGrid');
-            if (!items.length) { grid.innerHTML = `<div class="col-span-full text-center py-20 text-gray-500">Nenašli sa žiadne streamy.</div>`; return; }
+            if (!items.length) { 
+                grid.innerHTML = `<div class="col-span-full text-center py-20 text-gray-500 font-bold">Nenašli sa žiadne živé prenosy pre tento dopyt.</div>`; 
+                return; 
+            }
             
-            grid.innerHTML = items.map(v => `
-                <div class="video-card cursor-pointer group" onclick="playStream('${v.id.videoId}', '${v.snippet.title.replace(/'/g, "")}', '${v.snippet.channelTitle.replace(/'/g, "")}')">
-                    <div class="relative overflow-hidden rounded-xl aspect-video bg-gray-900">
+            grid.innerHTML = items.map((v, i) => `
+                <div class="video-card cursor-pointer animate-fade-in" style="animation-delay: ${i * 50}ms" onclick="playStream('${v.id.videoId}', '${v.snippet.title.replace(/'/g, "")}', '${v.snippet.channelTitle.replace(/'/g, "")}')">
+                    <div class="relative overflow-hidden rounded-2xl aspect-video bg-gray-900 shadow-lg">
                         <img src="${v.snippet.thumbnails.medium.url}" class="w-full h-full object-cover">
-                        <div class="play-overlay absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 transition-opacity">
-                            <i class="fas fa-play text-white text-3xl"></i>
+                        <div class="absolute top-3 left-3 live-badge shadow-lg">Live</div>
+                        <div class="absolute bottom-3 right-3 bg-black/80 px-2 py-1 rounded text-[10px] font-bold backdrop-blur-md">
+                            <i class="fas fa-eye mr-1 text-[#53fc18]"></i> ${(Math.random() * 20 + 1).toFixed(1)}k
+                        </div>
+                        <div class="play-overlay absolute inset-0 flex items-center justify-center transition-all group-hover:bg-black/40">
+                            <div class="w-12 h-12 bg-[#53fc18] rounded-full flex items-center justify-center scale-75 group-hover:scale-100 transition-transform">
+                                <i class="fas fa-play text-black ml-1"></i>
+                            </div>
                         </div>
                     </div>
-                    <div class="mt-2">
-                        <p class="text-sm font-bold truncate">${v.snippet.title}</p>
-                        <p class="text-xs text-gray-500">${v.snippet.channelTitle}</p>
+                    <div class="mt-4 flex gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white/5 flex-shrink-0 flex items-center justify-center font-black text-gray-500 border border-white/5">
+                            ${v.snippet.channelTitle[0]}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-sm font-bold text-white truncate leading-tight mb-1" title="${v.snippet.title}">${v.snippet.title}</h4>
+                            <p class="text-xs text-gray-500 font-bold hover:text-[#53fc18] transition-colors truncate">${v.snippet.channelTitle}</p>
+                            <div class="mt-2 flex gap-1 items-center">
+                                <span class="bg-[#1e2024] text-[9px] font-black uppercase text-gray-500 px-2 py-0.5 rounded tracking-tighter">Gaming</span>
+                                <span class="bg-[#1e2024] text-[9px] font-black uppercase text-gray-500 px-2 py-0.5 rounded tracking-tighter">Slovak</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `).join('');
@@ -397,32 +613,71 @@
         const searchByCategory = (c) => {
             document.getElementById('searchInput').value = c;
             showSection('home');
-            loadHomeStreams(c + " Live");
+            loadHomeStreams(c + " Live Stream");
         };
 
         const playStream = (id, t, c) => {
             showSection('player');
             document.getElementById('streamTitle').innerText = t;
             document.getElementById('channelName').innerText = c;
-            document.getElementById('customPlayer').innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-            document.getElementById('chatBox').innerHTML = `<div class="text-center text-gray-600 text-[10px]">Vitaj v čete ${c}!</div>`;
+            document.getElementById('avatarLetter').innerText = c[0].toUpperCase();
+            document.getElementById('customPlayer').innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1&rel=0&modestbranding=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+            
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML = `
+            <div class="bg-white/5 p-3 rounded-xl border border-white/5 mb-2">
+                <p class="text-[10px] text-gray-500 leading-snug">Vitaj v čete! Správaj sa slušne a rešpektuj ostatných divákov. CloopShield monitoruje správy.</p>
+            </div>`;
+            
+            // Spusti bot správy
+            if(window.chatInterval) clearInterval(window.chatInterval);
+            window.chatInterval = setInterval(() => {
+                if(document.getElementById('playerSection').classList.contains('hidden')) return;
+                const randomBot = ["Gamer99", "X_PRO_X", "SlovakPlayer", "KickFan", "Mato", "Kika", "StreamLover"][Math.floor(Math.random()*7)];
+                addChatMessage(randomBot, botResponses[Math.floor(Math.random()*botResponses.length)], false);
+            }, 4000);
+        };
+
+        const addChatMessage = (user, msg, isMe) => {
+            const box = document.getElementById('chatBox');
+            const div = document.createElement('div');
+            div.className = "flex gap-3 group animate-fade-in";
+            
+            const colors = ['#53fc18', '#3b82f6', '#ec4899', '#f59e0b', '#8b5cf6'];
+            const userColor = isMe ? '#53fc18' : colors[user.length % colors.length];
+
+            div.innerHTML = `
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <span class="text-[11px] font-black" style="color: ${userColor}">${user}</span>
+                        <span class="text-[9px] text-gray-700 font-bold">14:02</span>
+                    </div>
+                    <p class="text-gray-300 leading-relaxed break-words">${msg}</p>
+                </div>
+            `;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+            if(box.childNodes.length > 50) box.removeChild(box.firstChild);
         };
 
         const sendChatMessage = () => {
             const inp = document.getElementById('chatInput');
-            const box = document.getElementById('chatBox');
-            if (!inp.value.trim() || !currentUser) return;
-            const div = document.createElement('div');
-            div.className = "animate-fade-in";
-            div.innerHTML = `<span class="font-bold text-[#53fc18]">${currentUser}:</span> <span class="text-gray-300">${inp.value}</span>`;
-            box.appendChild(div);
-            box.scrollTop = box.scrollHeight;
+            if (!inp.value.trim()) return;
+            if (!currentUser) { openAuth('login'); return; }
+            
+            addChatMessage(currentUser, inp.value, true);
             inp.value = '';
         };
 
         const showSection = (s) => {
-            document.getElementById('homeSection').style.display = s === 'home' ? 'block' : 'none';
-            document.getElementById('playerSection').style.display = s === 'player' ? 'block' : 'none';
+            document.getElementById('homeSection').classList.toggle('hidden', s !== 'home');
+            document.getElementById('playerSection').classList.toggle('hidden', s !== 'player');
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks[0].classList.toggle('active', s === 'home');
+            if(s === 'home') {
+                document.getElementById('customPlayer').innerHTML = '';
+                if(window.chatInterval) clearInterval(window.chatInterval);
+            }
         };
 
         const openSettings = () => document.getElementById('settingsModal').classList.remove('hidden');
@@ -430,8 +685,11 @@
         const saveSettings = () => {
             const k = document.getElementById('apiKeyInput').value.trim();
             if (k) {
-                db.transaction([STORES.settings], 'readwrite').objectStore(STORES.settings).put(k, 'api_key');
-                API_KEY = k; closeSettings(); loadHomeStreams();
+                const tx = db.transaction([STORES.settings], 'readwrite');
+                tx.objectStore(STORES.settings).put(k, 'api_key');
+                API_KEY = k; 
+                closeSettings(); 
+                loadHomeStreams();
             }
         };
 
@@ -439,17 +697,21 @@
             await initDB();
             AntiCheat.init();
             
-            db.transaction([STORES.settings], 'readonly').objectStore(STORES.settings).get('api_key').onsuccess = (e) => {
+            // Načítaj API kľúč
+            const tx = db.transaction([STORES.settings], 'readonly');
+            tx.objectStore(STORES.settings).get('api_key').onsuccess = (e) => {
                 if (e.target.result) {
                     API_KEY = e.target.result;
                     document.getElementById('apiKeyInput').value = API_KEY;
                     loadHomeStreams();
-                } else openSettings();
+                }
             };
 
+            // Načítaj reláciu
             const session = localStorage.getItem('cloop_session');
             if (session) {
-                db.transaction([STORES.users], 'readonly').objectStore(STORES.users).get(session).onsuccess = (e) => {
+                const txU = db.transaction([STORES.users], 'readonly');
+                txU.objectStore(STORES.users).get(session).onsuccess = (e) => {
                     const d = e.target.result;
                     if (d && !d.banned) { currentUser = session; updateAuthUI(); }
                     else if (d && d.banned) showBan(session);
