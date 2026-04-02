@@ -34,7 +34,7 @@
             width: 100%;
             height: 100%;
             background: #000;
-            object-fit: contain;
+            object-fit: contain; /* Zabezpečí, že uvidíte celý monitor bez orezania */
         }
 
         #setup-modal { 
@@ -86,10 +86,10 @@
             <div class="space-y-4">
                 <!-- Streamer sekcia (iba PC) -->
                 <div id="streamer-ui" class="desktop-only border border-white/5 p-6 rounded-2xl bg-white/5">
-                    <i class="fa-solid fa-broadcast-tower text-2xl text-[#05f00a] mb-3"></i>
-                    <h3 class="font-bold text-sm uppercase mb-4">Vysielať z tohto PC</h3>
+                    <i class="fa-solid fa-desktop text-2xl text-[#05f00a] mb-3"></i>
+                    <h3 class="font-bold text-sm uppercase mb-4">Vysielať monitor</h3>
                     <button id="btn-start-stream" class="btn-primary w-full py-4 rounded-xl text-xs uppercase tracking-widest">
-                        Spustiť Live Stream
+                        Zdieľať obrazovku
                     </button>
                 </div>
 
@@ -137,9 +137,10 @@
     </header>
 
     <!-- MAIN VIEW -->
-    <main class="flex-1 bg-black relative">
-        <video id="remote-video" autoplay playsinline></video>
-        <video id="local-video" autoplay playsinline muted class="hidden"></video>
+    <main class="flex-1 bg-black relative flex items-center justify-center">
+        <!-- Iba jeden video element pre monitor -->
+        <video id="remote-video" autoplay playsinline class="w-full h-full"></video>
+        <video id="local-video" autoplay playsinline muted class="hidden w-full h-full"></video>
         
         <div id="no-signal" class="absolute inset-0 flex flex-center items-center justify-center flex-col text-center p-8">
             <i class="fa-solid fa-signal text-4xl text-gray-800 mb-4"></i>
@@ -152,7 +153,7 @@
             <div class="glass p-4 rounded-2xl flex items-center justify-between">
                 <div>
                     <p id="overlay-title" class="text-xs font-bold">Načítavam stream...</p>
-                    <p class="text-[9px] text-gray-400 uppercase">Real-time P2P Link</p>
+                    <p class="text-[9px] text-gray-400 uppercase">Single Feed Link</p>
                 </div>
                 <div class="bg-red-600 px-2 py-1 rounded text-[8px] font-black uppercase">Live</div>
             </div>
@@ -161,7 +162,7 @@
 
     <script>
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const peer = new Peer(); // Inicializácia PeerJS bez vlastného ID (necháme vygenerovať)
+        const peer = new Peer(); 
         
         let localStream;
         const localVideo = document.getElementById('local-video');
@@ -169,78 +170,80 @@
         const setupModal = document.getElementById('setup-modal');
         const noSignal = document.getElementById('no-signal');
 
-        // Nastavenie UI podľa zariadenia
         window.onload = () => {
             const deviceInfo = document.getElementById('device-info');
             if (isMobile) {
                 deviceInfo.innerText = "Mobilné zariadenie - Režim Divák";
             } else {
-                deviceInfo.innerText = "PC Terminal - Plný prístup";
+                deviceInfo.innerText = "PC Terminal - Jeden zdroj (Monitor)";
             }
         };
 
-        // Získanie nášho unikátneho ID
         peer.on('open', (id) => {
             document.getElementById('display-peer-id').innerText = id;
             console.log('Moje Peer ID:', id);
         });
 
-        // --- LOGIKA STREAMERA (PC) ---
+        // --- LOGIKA STREAMERA (PC) - JEDEN ZDROJ (MONITOR) ---
         document.getElementById('btn-start-stream').onclick = async () => {
             if (isMobile) return;
 
             try {
-                // Zachytenie obrazovky
+                // Zachytenie celého monitora (Display Media)
                 localStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { cursor: "always" },
+                    video: { 
+                        cursor: "always",
+                        frameRate: { ideal: 30, max: 60 }
+                    },
                     audio: true
                 });
 
+                // Zobrazenie lokálneho náhľadu
                 localVideo.srcObject = localStream;
                 localVideo.classList.remove('hidden');
-                remoteVideo.classList.add('hidden'); // Streamer vidí svoje preview v localVideo
+                remoteVideo.classList.add('hidden');
+                noSignal.classList.add('hidden');
                 
-                enterApp("Broadcasting...");
+                enterApp();
                 document.getElementById('my-id-container').classList.remove('hidden');
                 
-                // Čakanie na hovory od divákov
+                // Prijímanie hovorov (P2P)
                 peer.on('call', (call) => {
-                    console.log('Prijímam spojenie od diváka...');
-                    call.answer(localStream); // Odpovedať so streamom obrazovky
+                    console.log('Pripája sa divák...');
+                    call.answer(localStream);
                 });
 
-                addLog("Vysielanie spustené. Zdieľaj svoje ID!");
+                console.log("Vysielanie monitora spustené.");
             } catch (err) {
-                console.error("Chyba pri štarte streamu:", err);
-                alert("Nepodarilo sa spustiť zdieľanie obrazovky.");
+                console.error("Chyba pri štarte:", err);
+                alert("Zrušené alebo chyba pri zdieľaní monitora.");
             }
         };
 
-        // --- LOGIKA DIVÁKA (PC + Mobil) ---
+        // --- LOGIKA DIVÁKA ---
         const joinStream = (targetId) => {
             if (!targetId) return;
             
             console.log('Pripájanie k:', targetId);
-            // Divák "zavolá" streamerovi bez posielania vlastného streamu
             const call = peer.call(targetId, new MediaStream()); 
 
             call.on('stream', (remoteStream) => {
                 console.log('Stream prijatý!');
                 remoteVideo.srcObject = remoteStream;
                 remoteVideo.classList.remove('hidden');
+                localVideo.classList.add('hidden');
                 noSignal.classList.add('hidden');
                 
                 if (isMobile) {
                     document.getElementById('mobile-overlay').classList.remove('hidden');
-                    document.getElementById('overlay-title').innerText = "Streaming from: " + targetId;
+                    document.getElementById('overlay-title').innerText = "Sledujem: " + targetId;
                 }
                 
-                enterApp("Sledujem: " + targetId);
+                enterApp();
             });
 
             call.on('error', (err) => {
-                alert("Chyba pripojenia. Skontroluj ID.");
-                console.error(err);
+                alert("Nepodarilo sa nájsť streamera s týmto ID.");
             });
         };
 
@@ -255,13 +258,9 @@
             }
         });
 
-        function enterApp(statusText) {
+        function enterApp() {
             setupModal.style.display = 'none';
             document.getElementById('live-tag').classList.remove('hidden');
-        }
-
-        function addLog(msg) {
-            console.log("[KICK PRO]", msg);
         }
 
     </script>
