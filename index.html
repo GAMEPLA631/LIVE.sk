@@ -329,7 +329,7 @@
 
     <!-- Auth Modal -->
     <div id="authModal" class="fixed inset-0 bg-black/95 z-[100] hidden items-center justify-center p-4 backdrop-blur-md">
-        <div class="bg-[#191b1f] w-full max-w-sm rounded-[32px] p-10 border border-white/5 shadow-2xl relative overflow-hidden">
+        <div class="bg-[#191b1f] w-full max-sm rounded-[32px] p-10 border border-white/5 shadow-2xl relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#53fc18] to-transparent"></div>
             <div class="text-center mb-8">
                 <div class="w-16 h-16 bg-[#53fc18] rounded-2xl flex items-center justify-center mx-auto mb-4 rotate-6">
@@ -395,7 +395,6 @@
                 window.addEventListener('keydown', (e) => {
                     if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74))) this.trigger('DEV_TOOLS');
                 });
-                // Detekcia zmeny veľkosti okna (často pri otvorení konzoly)
                 let threshold = 160;
                 window.onresize = () => {
                     if (window.outerWidth - window.innerWidth > threshold || window.outerHeight - window.innerHeight > threshold) {
@@ -505,8 +504,6 @@
         const showBan = (u) => {
             document.getElementById('banIdDisplay').innerText = btoa(u).substring(0, 8).toUpperCase();
             document.getElementById('banOverlay').style.display = 'flex';
-            
-            // Kontrola či už existuje odvolanie
             if (currentUser) {
                 const tx = db.transaction([STORES.users], 'readonly');
                 tx.objectStore(STORES.users).get(currentUser).onsuccess = (e) => {
@@ -558,7 +555,19 @@
                 const data = await res.json();
                 
                 if (data.error) {
-                    grid.innerHTML = `<div class="col-span-full text-center text-red-500 bg-red-500/10 p-10 rounded-3xl border border-red-500/20 font-bold">API ERROR: ${data.error.message}</div>`;
+                    if (data.error.errors && data.error.errors[0].reason === 'quotaExceeded') {
+                        grid.innerHTML = `
+                        <div class="col-span-full text-center bg-orange-500/10 p-10 rounded-3xl border border-orange-500/20">
+                            <i class="fas fa-clock text-orange-500 text-4xl mb-4"></i>
+                            <h3 class="text-xl font-bold text-white mb-2">Denná kvóta vyčerpaná</h3>
+                            <p class="text-gray-400 text-sm max-w-lg mx-auto">Tento API kľúč vyčerpal limit požiadaviek od Google na dnes. 
+                            Limit sa obnoví o polnoci (PST čas). <br><br>
+                            <span class="text-xs text-gray-500">Rada: V Google Cloud Console si môžeš vytvoriť nový projekt a získať druhý kľúč.</span></p>
+                            <button onclick="openSettings()" class="mt-6 text-[#53fc18] text-xs font-bold underline uppercase">Zmeniť API kľúč</button>
+                        </div>`;
+                    } else {
+                        grid.innerHTML = `<div class="col-span-full text-center text-red-500 bg-red-500/10 p-10 rounded-3xl border border-red-500/20 font-bold">API CHYBA: ${data.error.message}</div>`;
+                    }
                     return;
                 }
                 renderVideos(data.items || []);
@@ -629,7 +638,6 @@
                 <p class="text-[10px] text-gray-500 leading-snug">Vitaj v čete! Správaj sa slušne a rešpektuj ostatných divákov. CloopShield monitoruje správy.</p>
             </div>`;
             
-            // Spusti bot správy
             if(window.chatInterval) clearInterval(window.chatInterval);
             window.chatInterval = setInterval(() => {
                 if(document.getElementById('playerSection').classList.contains('hidden')) return;
@@ -642,15 +650,12 @@
             const box = document.getElementById('chatBox');
             const div = document.createElement('div');
             div.className = "flex gap-3 group animate-fade-in";
-            
             const colors = ['#53fc18', '#3b82f6', '#ec4899', '#f59e0b', '#8b5cf6'];
             const userColor = isMe ? '#53fc18' : colors[user.length % colors.length];
-
             div.innerHTML = `
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-0.5">
                         <span class="text-[11px] font-black" style="color: ${userColor}">${user}</span>
-                        <span class="text-[9px] text-gray-700 font-bold">14:02</span>
                     </div>
                     <p class="text-gray-300 leading-relaxed break-words">${msg}</p>
                 </div>
@@ -664,7 +669,6 @@
             const inp = document.getElementById('chatInput');
             if (!inp.value.trim()) return;
             if (!currentUser) { openAuth('login'); return; }
-            
             addChatMessage(currentUser, inp.value, true);
             inp.value = '';
         };
@@ -673,7 +677,7 @@
             document.getElementById('homeSection').classList.toggle('hidden', s !== 'home');
             document.getElementById('playerSection').classList.toggle('hidden', s !== 'player');
             const navLinks = document.querySelectorAll('.nav-link');
-            navLinks[0].classList.toggle('active', s === 'home');
+            if (navLinks[0]) navLinks[0].classList.toggle('active', s === 'home');
             if(s === 'home') {
                 document.getElementById('customPlayer').innerHTML = '';
                 if(window.chatInterval) clearInterval(window.chatInterval);
@@ -696,8 +700,6 @@
         window.onload = async () => {
             await initDB();
             AntiCheat.init();
-            
-            // Načítaj API kľúč
             const tx = db.transaction([STORES.settings], 'readonly');
             tx.objectStore(STORES.settings).get('api_key').onsuccess = (e) => {
                 if (e.target.result) {
@@ -706,8 +708,6 @@
                     loadHomeStreams();
                 }
             };
-
-            // Načítaj reláciu
             const session = localStorage.getItem('cloop_session');
             if (session) {
                 const txU = db.transaction([STORES.users], 'readonly');
